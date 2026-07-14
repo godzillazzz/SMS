@@ -545,11 +545,33 @@ window.apiCall = function(action, args = [], payloadObj = null) {
     })
     .then(res => res.json())
     .then(result => {
-      if (result.error) reject(new Error(result.error));
+      if (result.error) {
+        if (result.error.toLowerCase().includes('session expired') || result.error.includes('เข้าสู่ระบบใหม่')) {
+          alert('เซสชั่นของคุณหมดอายุ กรุณาเข้าสู่ระบบใหม่อีกครั้ง');
+          if (window.shiftFlowLogout) window.shiftFlowLogout();
+          else {
+            localStorage.removeItem('shiftflow_user');
+            sessionStorage.removeItem('shiftflow_user');
+            window.location.reload();
+          }
+        }
+        reject(new Error(result.error));
+      }
       else if (result.status === 'error') reject(new Error(result.message || 'Error'));
       else resolve(result.data !== undefined ? result.data : result);
     })
-    .catch(err => reject(err));
+    .catch(err => {
+      if (err.message && (err.message.toLowerCase().includes('session expired') || err.message.includes('เข้าสู่ระบบใหม่'))) {
+          alert('เซสชั่นของคุณหมดอายุ กรุณาเข้าสู่ระบบใหม่อีกครั้ง');
+          if (window.shiftFlowLogout) window.shiftFlowLogout();
+          else {
+            localStorage.removeItem('shiftflow_user');
+            sessionStorage.removeItem('shiftflow_user');
+            window.location.reload();
+          }
+      }
+      reject(err);
+    });
   });
 };
 
