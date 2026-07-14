@@ -1,3 +1,25 @@
+window.localLeaveHistoryList = [];
+window.currentLeaveRemaining = { sick: 0, personal: 0, vacation: 0 };
+
+window.apiCall = function(action, args = [], payloadObj = null) {
+  return new Promise((resolve, reject) => {
+    const p = payloadObj || (Array.isArray(args) && args.length > 0 && typeof args[0] === 'object' ? args[0] : {});
+    const url = window.GAS_WEB_APP_URL || 'https://script.google.com/macros/s/AKfycbyNSu_HlAemXEdVjaxeNu-m15Uln5qBzv4-ZfnoyoIWKCbCuAfuLN1AnVX9s9zgxuuj/exec';
+    fetch(url, {
+      method: 'POST',
+      body: JSON.stringify({ action: action, args: args, payload: p }),
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+    })
+    .then(res => res.json())
+    .then(result => {
+      if (result.error) reject(new Error(result.error));
+      else if (result.status === 'error') reject(new Error(result.message || 'Error'));
+      else resolve(result.data !== undefined ? result.data : result);
+    })
+    .catch(err => reject(err));
+  });
+};
+
 window.loadLeaveView = function() {
   if (!sessionUser) return;
   const adminContainer = document.getElementById('leave-admin-container');
@@ -5,7 +27,9 @@ window.loadLeaveView = function() {
     adminContainer.style.display = (sessionUser.Role === 'admin' || sessionUser.Role === 'manager') ? 'block' : 'none';
   }
   
-  apiCall('getLeaveSummary', []).then(data => {
+  const empName = sessionUser.FullName || sessionUser.Name || sessionUser.Username || '';
+  apiCall('getLeaveSummary', [], { name: empName, month: 'all', year: '' }).then(data => {
+    window.currentLeaveRemaining = data.remaining || { sick: 0, personal: 0, vacation: 0 };
     const sickEl = document.getElementById('leave-quota-sick');
     const personalEl = document.getElementById('leave-quota-personal');
     const vacationEl = document.getElementById('leave-quota-vacation');
@@ -13,13 +37,17 @@ window.loadLeaveView = function() {
     if (personalEl) personalEl.innerText = data.remaining.personal;
     if (vacationEl) vacationEl.innerText = data.remaining.vacation;
     
+    window.localLeaveHistoryList = data.details || data.history || [];
     let histHtml = '';
-    data.history.forEach(h => {
+    window.localLeaveHistoryList.forEach((h, idx) => {
       let statusBadge = `<span style="background: #f1f5f9; color: #475569; padding: 4px 10px; border-radius: 20px; font-weight: 600; font-size: 12px;">${h.status}</span>`;
+      let printBtn = `<button disabled style="background: #e2e8f0; color: #94a3b8; padding: 5px 12px; border-radius: 8px; border: none; font-size: 12px; cursor: not-allowed; display: inline-flex; align-items: center; gap: 4px;">🖨️ พิมพ์ A4</button>`;
+      
       if (h.status === 'อนุมัติ') {
         statusBadge = `<span style="background: #dcfce7; color: #166534; padding: 4px 12px; border-radius: 20px; font-weight: 600; font-size: 12px; display: inline-flex; align-items: center; gap: 4px;">✅ อนุมัติ</span>`;
-      } else if (h.status === 'รอตรวจสอบ' || h.status.includes('รอ')) {
-        statusBadge = `<span style="background: #fef9c3; color: #854d0e; padding: 4px 12px; border-radius: 20px; font-weight: 600; font-size: 12px; display: inline-flex; align-items: center; gap: 4px;">⏳ รอตรวจสอบ</span>`;
+        printBtn = `<button onclick="window.printLeaveA4(${idx})" style="background: linear-gradient(135deg, #059669 0%, #10b981 100%); color: white; padding: 5px 14px; border-radius: 8px; border: none; font-weight: 600; font-size: 12px; cursor: pointer; box-shadow: 0 2px 4px rgba(16, 185, 129, 0.25); display: inline-flex; align-items: center; gap: 4px; transition: transform 0.15s;">🖨️ พิมพ์ A4</button>`;
+      } else if (h.status === 'รอตรวจสอบ' || h.status === 'รออนุมัติ' || h.status.includes('รอ')) {
+        statusBadge = `<span style="background: #fef9c3; color: #854d0e; padding: 4px 12px; border-radius: 20px; font-weight: 600; font-size: 12px; display: inline-flex; align-items: center; gap: 4px;">⏳ รออนุมัติ</span>`;
       } else if (h.status === 'ไม่อนุมัติ') {
         statusBadge = `<span style="background: #fee2e2; color: #991b1b; padding: 4px 12px; border-radius: 20px; font-weight: 600; font-size: 12px; display: inline-flex; align-items: center; gap: 4px;">❌ ไม่อนุมัติ</span>`;
       }
@@ -28,25 +56,26 @@ window.loadLeaveView = function() {
         <td style="padding: 14px; font-weight: 500; color: #334155;">${h.date}</td>
         <td style="padding: 14px;"><span style="background: #eff6ff; color: #2563eb; padding: 3px 10px; border-radius: 6px; font-size: 12.5px; font-weight: 600;">${h.type}</span></td>
         <td style="padding: 14px; text-align: center;">${statusBadge}</td>
+        <td style="padding: 14px; text-align: center;">${printBtn}</td>
       </tr>`;
     });
     const historyTable = document.getElementById('leave-history-table');
     if (historyTable) {
-      historyTable.innerHTML = histHtml || '<tr><td colspan="3" style="text-align:center; padding: 36px; color: #94a3b8;">✨ ยังไม่มีประวัติการยื่นคำขอลา</td></tr>';
+      historyTable.innerHTML = histHtml || '<tr><td colspan="4" style="text-align:center; padding: 36px; color: #94a3b8;">✨ ยังไม่มีประวัติการยื่นคำขอลา</td></tr>';
     }
   }).catch(err => console.error(err));
 
   if (sessionUser.Role === 'admin' || sessionUser.Role === 'manager') {
-    apiCall('getPendingLeaves', []).then(list => {
+    apiCall('getPendingRequests', []).then(list => {
       let pendHtml = '';
-      list.forEach(p => {
+      (list || []).forEach(p => {
         const fileLink = (p.fileUrl && p.fileUrl !== 'ไม่มีไฟล์แนบ') ? `<a href="${p.fileUrl}" target="_blank" style="display: inline-flex; align-items: center; gap: 4px; background: #eff6ff; color: #2563eb; padding: 4px 10px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 12px;">📎 ดูเอกสาร</a>` : `<span style="color: #94a3b8; font-size: 12px;">-</span>`;
         pendHtml += `<tr style="border-bottom: 1px solid #fef3c7; transition: background 0.15s;">
           <td style="padding: 14px; font-weight: 600; color: #1e293b;">${p.name} <div style="font-size: 11.5px; font-weight: normal; color: #64748b;">${p.department}</div></td>
           <td style="padding: 14px;"><span style="background: #fffbeb; border: 1px solid #fde68a; color: #d97706; padding: 3px 10px; border-radius: 6px; font-size: 12.5px; font-weight: 600;">${p.type}</span></td>
           <td style="padding: 14px; color: #334155; font-weight: 500;">${p.date}</td>
           <td style="padding: 14px; color: #1e293b; font-weight: 700;">${p.days}</td>
-          <td style="padding: 14px; color: #475569; max-width: 200px;">${p.reason}</td>
+          <td style="padding: 14px; color: #475569; max-width: 200px;">${p.reason || '-'}</td>
           <td style="padding: 14px;">${fileLink}</td>
           <td style="padding: 14px; text-align: center; white-space: nowrap;">
             <button onclick="approveLeave(${p.id})" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 6px 14px; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; font-size: 12.5px; box-shadow: 0 2px 4px rgba(16, 185, 129, 0.2); margin-right: 6px;">✅ อนุมัติ</button>
@@ -62,35 +91,122 @@ window.loadLeaveView = function() {
   }
 };
 
+/* ==========================================================
+   🛡️ ระบบตรวจสอบโควตาวันลาคงเหลือก่อนยื่น (Client-Side Validation)
+   ========================================================== */
+window.checkLeaveQuotaOnForm = function() {
+  const type = document.getElementById('leave-type')?.value;
+  const start = document.getElementById('leave-start')?.value;
+  const end = document.getElementById('leave-end')?.value;
+  const warningEl = document.getElementById('leave-quota-warning');
+  const submitBtn = document.getElementById('leave-submit-btn');
+  const submitText = document.getElementById('leave-submit-text');
+
+  if (!type || !start || !end || !warningEl || !submitBtn) return;
+
+  const startDate = new Date(start);
+  const endDate = new Date(end);
+  const diffTime = endDate - startDate;
+  if (diffTime < 0) {
+    warningEl.style.display = 'block';
+    warningEl.innerText = '⚠️ วันที่สิ้นสุดต้องอยู่หลังหรือวันเดียวกับวันที่เริ่มต้น';
+    submitBtn.disabled = true;
+    submitBtn.style.opacity = '0.5';
+    submitBtn.style.cursor = 'not-allowed';
+    return;
+  }
+
+  const days = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+  let remaining = 0;
+  if (type === 'ลาป่วย') remaining = window.currentLeaveRemaining.sick || 0;
+  else if (type === 'ลากิจ') remaining = window.currentLeaveRemaining.personal || 0;
+  else if (type === 'ลาพักร้อน') remaining = window.currentLeaveRemaining.vacation || 0;
+
+  if (remaining < days) {
+    warningEl.style.display = 'block';
+    warningEl.innerText = `⚠️ คุณเลือกคำขอลาจำนวน ${days} วัน แต่โควตา ${type} คงเหลือมีเพียง ${remaining} วัน เท่านั้น`;
+    submitBtn.disabled = true;
+    submitBtn.style.opacity = '0.5';
+    submitBtn.style.cursor = 'not-allowed';
+    if (submitText) submitText.innerText = '🚫 วันลาคงเหลือไม่เพียงพอ';
+  } else {
+    warningEl.style.display = 'none';
+    submitBtn.disabled = false;
+    submitBtn.style.opacity = '1';
+    submitBtn.style.cursor = 'pointer';
+    if (submitText) submitText.innerText = '🚀 ยืนยันและส่งคำขอลา';
+  }
+};
+
+/* ==========================================================
+   🖨️ ระบบพิมพ์ใบลา A4 ตามรูปแบบเดิม (Print A4 Layout)
+   ========================================================== */
+window.printLeaveA4 = function(index) {
+  const item = window.localLeaveHistoryList[index];
+  if (!item) return;
+
+  const today = new Date().toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
+  const empNameEl = document.getElementById('printEmpName');
+  const dateEl = document.getElementById('printDate');
+  const titleEl = document.getElementById('printReportTitle');
+  const rowBody = document.getElementById('printSingleRowBody');
+
+  if (empNameEl) empNameEl.innerText = sessionUser.FullName || sessionUser.Name || 'พนักงาน';
+  if (dateEl) dateEl.innerText = today;
+  if (titleEl) titleEl.innerText = "ใบขออนุมัติลางาน";
+
+  const detailsOrReason = item.reason || item.details || item.type || '-';
+  const daysText = item.days ? `${item.days} วัน` : '1 วัน';
+
+  if (rowBody) {
+    rowBody.innerHTML = `
+      <tr>
+        <td style="padding: 12px; border: 1px solid #000; text-align: center; font-weight: 500;">${item.date}</td>
+        <td style="padding: 12px; border: 1px solid #000; text-align: center; font-weight: bold; color: #1d4ed8;">${item.type}</td>
+        <td style="padding: 12px; border: 1px solid #000; text-align: center;">${daysText}</td>
+        <td style="padding: 12px; border: 1px solid #000; text-align: left;">${detailsOrReason}</td>
+      </tr>
+    `;
+  }
+
+  window.print();
+};
+
 window.submitLeave = function(event) {
   event.preventDefault();
   const btn = document.getElementById('leave-submit-btn');
-  btn.innerText = 'กำลังส่ง...';
-  btn.disabled = true;
+  const text = document.getElementById('leave-submit-text');
+  if (text) text.innerText = '⏳ กำลังส่งข้อมูล...';
+  if (btn) btn.disabled = true;
 
   const type = document.getElementById('leave-type').value;
   const start = document.getElementById('leave-start').value;
   const end = document.getElementById('leave-end').value;
-  const reason = document.getElementById('leave-reason').value;
+  const sub = document.getElementById('leave-substitute')?.value || '';
+  const reasonText = document.getElementById('leave-reason').value;
   const fileInput = document.getElementById('leave-file');
 
+  const fullReason = sub ? `[แทน: ${sub}] ${reasonText}` : reasonText;
+
   const payload = {
+    name: sessionUser?.FullName || sessionUser?.Name || 'พนักงาน',
+    department: sessionUser?.Department || sessionUser?.Workspace || 'ศูนย์ปฏิบัติการระบบท่อเขต 11',
     leaveType: type,
     startDate: start,
     endDate: end,
-    reason: reason
+    reason: fullReason
   };
 
   const finalize = () => {
-    apiCall('submitLeaveRequest', [payload]).then(res => {
-      alert(res.message);
+    apiCall('saveLeaveRequest', [], payload).then(res => {
+      alert(res.message || 'บันทึกสำเร็จ');
       document.getElementById('leave-form').reset();
       loadLeaveView();
     }).catch(err => {
       alert('เกิดข้อผิดพลาด: ' + err.message);
     }).finally(() => {
-      btn.innerText = 'ส่งใบลา';
-      btn.disabled = false;
+      if (text) text.innerText = '🚀 ยืนยันและส่งคำขอลา';
+      if (btn) btn.disabled = false;
     });
   };
 
@@ -110,22 +226,21 @@ window.submitLeave = function(event) {
 };
 
 window.approveLeave = function(id) {
-  if (!confirm('ยืนยันการอนุมัติคำขอนี้? ระบบจะทำการอัปเดตตารางกะเป็น AL อัตโนมัติ')) return;
-  apiCall('updateLeaveStatus', [id, 'อนุมัติ']).then(() => {
-    alert('อนุมัติสำเร็จ และอัปเดตตารางกะเรียบร้อยแล้ว');
+  if (!confirm('ยืนยันการอนุมัติคำขอนี้? ระบบจะทำการอัปเดตตารางและหักโควตาอัตโนมัติ')) return;
+  apiCall('changeRequestStatus', [], { requestId: id, status: 'อนุมัติ' }).then(() => {
+    alert('อนุมัติสำเร็จ');
     loadLeaveView();
   }).catch(err => alert(err.message));
 };
 
 window.rejectLeave = function(id) {
   if (!confirm('ยืนยันการไม่อนุมัติคำขอนี้?')) return;
-  apiCall('updateLeaveStatus', [id, 'ไม่อนุมัติ']).then(() => {
+  apiCall('changeRequestStatus', [], { requestId: id, status: 'ไม่อนุมัติ' }).then(() => {
     alert('บันทึกผลสำเร็จ');
     loadLeaveView();
   }).catch(err => alert(err.message));
 };
 
-// Hook into the main view rendering
 const originalRenderView = window.renderView;
 window.renderView = function(viewId) {
   if (originalRenderView) originalRenderView(viewId);

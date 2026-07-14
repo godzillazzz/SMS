@@ -31,9 +31,10 @@ function createRunner(successHandler, failureHandler) {
 }
 
 function executeApiCall(action, args, onSuccess, onFailure) {
+  const payloadObj = (Array.isArray(args) && args.length > 0 && typeof args[0] === 'object') ? args[0] : {};
   fetch(GAS_WEB_APP_URL, {
     method: 'POST',
-    body: JSON.stringify({ action: action, args: args }),
+    body: JSON.stringify({ action: action, args: args, payload: payloadObj }),
     headers: { 'Content-Type': 'text/plain;charset=utf-8' }
   })
   .then(res => res.json())
@@ -41,8 +42,11 @@ function executeApiCall(action, args, onSuccess, onFailure) {
     if (result.error) {
       if (onFailure) onFailure(new Error(result.error));
       else console.error('API Error:', result.error);
+    } else if (result.status === 'error') {
+      if (onFailure) onFailure(new Error(result.message || 'Error'));
+      else console.error('GAS Error:', result.message);
     } else {
-      if (onSuccess) onSuccess(result.data);
+      if (onSuccess) onSuccess(result.data !== undefined ? result.data : result);
     }
   })
   .catch(err => {
@@ -50,3 +54,4 @@ function executeApiCall(action, args, onSuccess, onFailure) {
     else console.error('Network Error:', err);
   });
 }
+
