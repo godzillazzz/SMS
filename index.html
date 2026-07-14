@@ -514,6 +514,12 @@ function executeApiCall(action, args, onSuccess, onFailure) {
 
 </script>
 <script>
+function isUserAdminOrManager(u) {
+  if (!u) return false;
+  const r = String(u.Role || '').trim().toLowerCase();
+  return (r === 'admin' || r === 'manager' || r.includes('admin') || r.includes('manager') || r.includes('ผู้ดูแล') || r.includes('หัวหน้า'));
+}
+
 function getActiveSessionUser() {
   const u = window.sessionUser || window.shiftFlowCurrentUser || (typeof currentSessionUser === 'function' ? currentSessionUser() : null);
   if (u) window.sessionUser = u;
@@ -552,7 +558,7 @@ window.loadLeaveView = function() {
   if (!sessionUser) return;
   const adminContainer = document.getElementById('leave-admin-container');
   if (adminContainer) {
-    adminContainer.style.display = (sessionUser.Role === 'admin' || sessionUser.Role === 'manager') ? 'block' : 'none';
+    adminContainer.style.display = (isUserAdminOrManager(sessionUser)) ? 'block' : 'none';
   }
   
   const empName = sessionUser.FullName || sessionUser.Name || sessionUser.Username || '';
@@ -593,7 +599,7 @@ window.loadLeaveView = function() {
     }
   }).catch(err => console.error(err));
 
-  if (sessionUser.Role === 'admin' || sessionUser.Role === 'manager') {
+  if (isUserAdminOrManager(sessionUser)) {
     apiCall('getPendingRequests', []).then(list => {
       let pendHtml = '';
       (list || []).forEach(p => {
@@ -850,6 +856,49 @@ window.renderView = function(viewId) {
   }
 };
 
+
+window.checkDatabaseInfo = function() {
+  const u = getActiveSessionUser();
+  if (!u) return alert('กรุณาล็อกอินเข้าสู่ระบบ');
+  const btn = document.getElementById('btn-check-db');
+  if (btn) btn.innerText = '⏳ กำลังตรวจสอบชีตฐานข้อมูล...';
+  apiCall('getDatabaseInfo', [u.token]).then(data => {
+    if (btn) btn.innerText = '🗂️ ตรวจสอบชีตฐานข้อมูล และโควตาปัจจุบัน';
+    let empListStr = (data.quotaEmployees || []).map(e => `• ${e.name} (ป่วย: ${e.sick}, กิจ: ${e.personal}, พักร้อน: ${e.vacation})`).join('\n');
+    let msg = `📑 ชื่อไฟล์ชีตปัจจุบัน: ${data.spreadsheetName}\n` +
+              `🔗 ลิงก์ Google Sheets: \n${data.spreadsheetUrl}\n\n` +
+              `👥 จำนวนแถวในชีต Quota: ${data.quotaRowsCount} บรรทัด\n` +
+              `📝 จำนวนคำขอในชีตลางาน: ${data.leaveRequestsCount} รายการ\n\n` +
+              `📌 รายชื่อและโควตาในชีต Quota ขณะนี้:\n${empListStr || '(ยังไม่มีข้อมูล)'}`;
+    alert(msg);
+    if (confirm('คุณต้องการเปิดหน้า Google Sheets ฐานข้อมูลของระบบนี้ในแท็บใหม่ตอนนี้หรือไม่?')) {
+      window.open(data.spreadsheetUrl, '_blank');
+    }
+  }).catch(err => {
+    if (btn) btn.innerText = '🗂️ ตรวจสอบชีตฐานข้อมูล และโควตาปัจจุบัน';
+    alert('เกิดข้อผิดพลาดในการตรวจสอบฐานข้อมูล: ' + err.message);
+  });
+};
+
+window.testLineNotification = function() {
+  const u = getActiveSessionUser();
+  if (!u) return alert('กรุณาล็อกอินเข้าสู่ระบบ');
+  const btn = document.getElementById('btn-test-line');
+  if (btn) btn.innerText = '⏳ กำลังยิงข้อความทดสอบ...';
+  apiCall('testLineMessage', [u.token]).then(result => {
+    if (btn) btn.innerText = '🔔 ทดสอบส่งข้อความแจ้งเตือนเข้ากลุ่ม LINE';
+    console.log('LINE Test Result:', result);
+    if (result && result.success) {
+      alert('✅ ยิงข้อความทดสอบเข้ากลุ่ม LINE สำเร็จเรียบร้อยแล้ว! กรุณาตรวจสอบในแอป LINE ของคุณ');
+    } else {
+      let details = JSON.stringify(result.results || result, null, 2);
+      alert('⚠️ ยิงข้อความเข้า LINE ไม่สำเร็จ! รายละเอียดจากเซิร์ฟเวอร์ LINE:\n\n' + details + '\n\n💡 คำแนะนำ: ตรวจสอบ LINE Access Token และ Group ID ในตั้งค่าระบบ');
+    }
+  }).catch(err => {
+    if (btn) btn.innerText = '🔔 ทดสอบส่งข้อความแจ้งเตือนเข้ากลุ่ม LINE';
+    alert('เกิดข้อผิดพลาดในการทดสอบ LINE: ' + err.message);
+  });
+};
 
 </script>
 </head>
