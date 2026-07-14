@@ -32,6 +32,12 @@ function createRunner(successHandler, failureHandler) {
 
 function executeApiCall(action, args, onSuccess, onFailure) {
   const payloadObj = (Array.isArray(args) && args.length > 0 && typeof args[0] === 'object') ? args[0] : {};
+  const token = window.sessionUser ? window.sessionUser.token : (window.shiftFlowCurrentUser ? window.shiftFlowCurrentUser.token : '');
+  if (token) {
+    payloadObj.token = token;
+    if (!args || args.length === 0) args = [token];
+    else if (typeof args[0] !== 'string') args = [token, ...args];
+  }
   fetch(GAS_WEB_APP_URL, {
     method: 'POST',
     body: JSON.stringify({ action: action, args: args, payload: payloadObj }),
