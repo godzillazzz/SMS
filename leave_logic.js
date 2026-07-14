@@ -4,6 +4,12 @@ window.currentLeaveRemaining = { sick: 0, personal: 0, vacation: 0 };
 window.apiCall = function(action, args = [], payloadObj = null) {
   return new Promise((resolve, reject) => {
     const p = payloadObj || (Array.isArray(args) && args.length > 0 && typeof args[0] === 'object' ? args[0] : {});
+    const token = window.sessionUser ? window.sessionUser.token : (window.shiftFlowCurrentUser ? window.shiftFlowCurrentUser.token : '');
+    if (token) {
+      p.token = token;
+      if (!args || args.length === 0) args = [token];
+      else if (typeof args[0] !== 'string') args = [token, ...args];
+    }
     const url = window.GAS_WEB_APP_URL || 'https://script.google.com/macros/s/AKfycbyNSu_HlAemXEdVjaxeNu-m15Uln5qBzv4-ZfnoyoIWKCbCuAfuLN1AnVX9s9zgxuuj/exec';
     fetch(url, {
       method: 'POST',
@@ -71,7 +77,7 @@ window.loadLeaveView = function() {
       (list || []).forEach(p => {
         const fileLink = (p.fileUrl && p.fileUrl !== 'ไม่มีไฟล์แนบ') ? `<a href="${p.fileUrl}" target="_blank" style="display: inline-flex; align-items: center; gap: 4px; background: #eff6ff; color: #2563eb; padding: 4px 10px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 12px;">📎 ดูเอกสาร</a>` : `<span style="color: #94a3b8; font-size: 12px;">-</span>`;
         pendHtml += `<tr style="border-bottom: 1px solid #fef3c7; transition: background 0.15s;">
-          <td style="padding: 14px; font-weight: 600; color: #1e293b;">${p.name} <div style="font-size: 11.5px; font-weight: normal; color: #64748b;">${p.department}</div></td>
+          <td style="padding: 14px; font-weight: 600; color: #1e293b;">${p.name} <div style="font-size: 11.5px; font-weight: normal; color: #64748b;">${p.department || '-'}</div></td>
           <td style="padding: 14px;"><span style="background: #fffbeb; border: 1px solid #fde68a; color: #d97706; padding: 3px 10px; border-radius: 6px; font-size: 12.5px; font-weight: 600;">${p.type}</span></td>
           <td style="padding: 14px; color: #334155; font-weight: 500;">${p.date}</td>
           <td style="padding: 14px; color: #1e293b; font-weight: 700;">${p.days}</td>
@@ -88,8 +94,41 @@ window.loadLeaveView = function() {
         pendingTable.innerHTML = pendHtml || '<tr><td colspan="7" style="text-align:center; padding: 36px; color: #b45309;">🎉 ยอดเยี่ยม! ไม่มีคำขอที่รออนุมัติค้างอยู่</td></tr>';
       }
     }).catch(err => console.error(err));
+
+    apiCall('getAllLeaveHistory', []).then(list => {
+      window.allEmployeesLeaveHistoryList = list || [];
+      let allHtml = '';
+      (list || []).forEach((item, idx) => {
+        let statusBadge = `<span style="background: #f1f5f9; color: #475569; padding: 4px 10px; border-radius: 20px; font-weight: 600; font-size: 12px;">${item.status}</span>`;
+        let printBtn = `<button disabled style="background: #e2e8f0; color: #94a3b8; padding: 5px 12px; border-radius: 8px; border: none; font-size: 12px; cursor: not-allowed; display: inline-flex; align-items: center; gap: 4px;">🖨️ พิมพ์ A4</button>`;
+        
+        if (item.status === 'อนุมัติ') {
+          statusBadge = `<span style="background: #dcfce7; color: #166534; padding: 4px 12px; border-radius: 20px; font-weight: 600; font-size: 12px; display: inline-flex; align-items: center; gap: 4px;">✅ อนุมัติ</span>`;
+          printBtn = `<button onclick="window.printLeaveA4Admin(${idx})" style="background: linear-gradient(135deg, #059669 0%, #10b981 100%); color: white; padding: 5px 14px; border-radius: 8px; border: none; font-weight: 600; font-size: 12px; cursor: pointer; box-shadow: 0 2px 4px rgba(16, 185, 129, 0.25); display: inline-flex; align-items: center; gap: 4px; transition: transform 0.15s;">🖨️ พิมพ์ A4</button>`;
+        } else if (item.status === 'รอตรวจสอบ' || item.status === 'รออนุมัติ' || item.status.includes('รอ')) {
+          statusBadge = `<span style="background: #fef9c3; color: #854d0e; padding: 4px 12px; border-radius: 20px; font-weight: 600; font-size: 12px; display: inline-flex; align-items: center; gap: 4px;">⏳ รออนุมัติ</span>`;
+        } else if (item.status === 'ไม่อนุมัติ') {
+          statusBadge = `<span style="background: #fee2e2; color: #991b1b; padding: 4px 12px; border-radius: 20px; font-weight: 600; font-size: 12px; display: inline-flex; align-items: center; gap: 4px;">❌ ไม่อนุมัติ</span>`;
+        }
+
+        allHtml += `<tr style="transition: background 0.15s; border-bottom: 1px solid #f1f5f9;">
+          <td style="padding: 14px; font-weight: 600; color: #1e293b;">${item.name}</td>
+          <td style="padding: 14px;"><span style="background: #eff6ff; color: #2563eb; padding: 3px 10px; border-radius: 6px; font-size: 12.5px; font-weight: 600;">${item.type}</span></td>
+          <td style="padding: 14px; color: #334155; font-weight: 500;">${item.date}</td>
+          <td style="padding: 14px; color: #1e293b; font-weight: 700;">${item.days}</td>
+          <td style="padding: 14px; color: #475569; max-width: 200px;">${item.reason || '-'}</td>
+          <td style="padding: 14px; text-align: center;">${statusBadge}</td>
+          <td style="padding: 14px; text-align: center;">${printBtn}</td>
+        </tr>`;
+      });
+      const allTable = document.getElementById('leave-all-history-table');
+      if (allTable) {
+        allTable.innerHTML = allHtml || '<tr><td colspan="7" style="text-align:center; padding: 36px; color: #94a3b8;">✨ ยังไม่มีประวัติการลาในระบบ</td></tr>';
+      }
+    }).catch(err => console.error(err));
   }
 };
+
 
 /* ==========================================================
    🛡️ ระบบตรวจสอบโควตาวันลาคงเหลือก่อนยื่น (Client-Side Validation)
@@ -154,6 +193,37 @@ window.printLeaveA4 = function(index) {
   if (empNameEl) empNameEl.innerText = sessionUser.FullName || sessionUser.Name || 'พนักงาน';
   if (dateEl) dateEl.innerText = today;
   if (titleEl) titleEl.innerText = "ใบขออนุมัติลางาน";
+
+  const detailsOrReason = item.reason || item.details || item.type || '-';
+  const daysText = item.days ? `${item.days} วัน` : '1 วัน';
+
+  if (rowBody) {
+    rowBody.innerHTML = `
+      <tr>
+        <td style="padding: 12px; border: 1px solid #000; text-align: center; font-weight: 500;">${item.date}</td>
+        <td style="padding: 12px; border: 1px solid #000; text-align: center; font-weight: bold; color: #1d4ed8;">${item.type}</td>
+        <td style="padding: 12px; border: 1px solid #000; text-align: center;">${daysText}</td>
+        <td style="padding: 12px; border: 1px solid #000; text-align: left;">${detailsOrReason}</td>
+      </tr>
+    `;
+  }
+
+  window.print();
+};
+
+window.printLeaveA4Admin = function(index) {
+  const item = (window.allEmployeesLeaveHistoryList || [])[index];
+  if (!item) return;
+
+  const today = new Date().toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
+  const empNameEl = document.getElementById('printEmpName');
+  const dateEl = document.getElementById('printDate');
+  const titleEl = document.getElementById('printReportTitle');
+  const rowBody = document.getElementById('printSingleRowBody');
+
+  if (empNameEl) empNameEl.innerText = item.name || 'พนักงาน';
+  if (dateEl) dateEl.innerText = today;
+  if (titleEl) titleEl.innerText = "ใบขออนุมัติลางาน (สำหรับผู้บริหาร)";
 
   const detailsOrReason = item.reason || item.details || item.type || '-';
   const daysText = item.days ? `${item.days} วัน` : '1 วัน';
