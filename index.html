@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="th">
-<head><script src="polyfill.js"></script>
+<head><script src="polyfill.js"></script>`n    <script src="leave_logic.js"></script>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Security Management System — ระบบบริหารงานรักษาความปลอดภัย</title>
@@ -567,6 +567,10 @@ body.auth-locked{overflow:hidden;}
       <div class="nav-item">
         <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
         Schedule Calendar
+      </div>
+      <div class="nav-item">
+        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+        จัดการการลา
       </div>
       <div class="nav-item">
         <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4M12 22a10 10 0 100-20 10 10 0 000 20z"/></svg>
@@ -2106,7 +2110,8 @@ Chart.defaults.plugins.tooltip.bodyFont = { size: 12 };
     'Rule Checking': 'rules',
     'Reports': 'reports',
     'Users & Roles': 'users',
-    'Settings': 'settings'
+    'Settings': 'settings',
+    'จัดการการลา': 'leave'
   };
 
   const safe = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({
@@ -3627,3 +3632,6 @@ Chart.defaults.plugins.tooltip.bodyFont = { size: 12 };
 </script>
 </body>
 </html>
+
+
+

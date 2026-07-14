@@ -1,0 +1,100 @@
+<div id="view-leave" class="view-section" style="display:none;">
+  <div class="header-area">
+    <h1 class="page-title">จัดการการลา (Leave Management)</h1>
+  </div>
+  
+  <div id="leave-employee-container">
+    <div class="metrics-grid" style="margin-bottom: 20px;">
+      <div class="metric-card">
+        <div class="metric-title">ลาป่วยคงเหลือ</div>
+        <div class="metric-value" id="leave-quota-sick">-</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-title">ลากิจคงเหลือ</div>
+        <div class="metric-value" id="leave-quota-personal">-</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-title">ลาพักร้อนคงเหลือ</div>
+        <div class="metric-value" id="leave-quota-vacation">-</div>
+      </div>
+    </div>
+    
+    <div style="display:flex; gap:20px; flex-wrap:wrap;">
+      <div class="glass-panel" style="flex: 1; min-width: 300px;">
+        <h2 style="margin-bottom: 15px; font-size: 16px; font-weight: 600;">ส่งใบลา</h2>
+        <form id="leave-form" class="form-grid" onsubmit="window.submitLeave(event)">
+          <div class="form-group">
+            <label>ประเภทการลา</label>
+            <select id="leave-type" required>
+              <option value="">เลือกประเภท</option>
+              <option value="ลาป่วย">ลาป่วย</option>
+              <option value="ลากิจ">ลากิจ</option>
+              <option value="ลาพักร้อน">ลาพักร้อน</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>วันที่เริ่มต้น</label>
+            <input type="date" id="leave-start" required>
+          </div>
+          <div class="form-group">
+            <label>วันที่สิ้นสุด</label>
+            <input type="date" id="leave-end" required>
+          </div>
+          <div class="form-group" style="grid-column: 1 / -1;">
+            <label>เหตุผล</label>
+            <textarea id="leave-reason" rows="2" required></textarea>
+          </div>
+          <div class="form-group" style="grid-column: 1 / -1;">
+            <label>แนบไฟล์เอกสาร (รูปภาพ/PDF) *เฉพาะลาป่วย</label>
+            <input type="file" id="leave-file" accept="image/*,.pdf">
+          </div>
+          <div style="grid-column: 1 / -1;">
+            <button type="submit" class="btn btn-primary" id="leave-submit-btn" style="width: 100%;">ส่งใบลา</button>
+          </div>
+        </form>
+      </div>
+      
+      <div class="glass-panel" style="flex: 2; min-width: 400px;">
+        <h2 style="margin-bottom: 15px; font-size: 16px; font-weight: 600;">ประวัติการลาของฉัน</h2>
+        <div class="table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th>วันที่</th>
+                <th>ประเภท</th>
+                <th>สถานะ</th>
+              </tr>
+            </thead>
+            <tbody id="leave-history-table">
+              <tr><td colspan="3" style="text-align:center;">กำลังโหลด...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="leave-admin-container" style="display:none; margin-top:30px;">
+    <div class="glass-panel">
+      <h2 style="margin-bottom: 15px; font-size: 16px; font-weight: 600;">รายการใบลาที่รออนุมัติ (สำหรับหัวหน้า)</h2>
+      <div class="table-responsive">
+        <table>
+          <thead>
+            <tr>
+              <th>ชื่อพนักงาน</th>
+              <th>ประเภท</th>
+              <th>วันที่ลา</th>
+              <th>จำนวนวัน</th>
+              <th>เหตุผล</th>
+              <th>เอกสาร</th>
+              <th>การจัดการ</th>
+            </tr>
+          </thead>
+          <tbody id="leave-pending-table">
+            <tr><td colspan="7" style="text-align:center;">กำลังโหลด...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
