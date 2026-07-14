@@ -1,42 +1,63 @@
 window.loadLeaveView = function() {
   if (!sessionUser) return;
-  document.getElementById('leave-admin-container').style.display = (sessionUser.Role === 'admin' || sessionUser.Role === 'manager') ? 'block' : 'none';
+  const adminContainer = document.getElementById('leave-admin-container');
+  if (adminContainer) {
+    adminContainer.style.display = (sessionUser.Role === 'admin' || sessionUser.Role === 'manager') ? 'block' : 'none';
+  }
   
   apiCall('getLeaveSummary', []).then(data => {
-    document.getElementById('leave-quota-sick').innerText = data.remaining.sick;
-    document.getElementById('leave-quota-personal').innerText = data.remaining.personal;
-    document.getElementById('leave-quota-vacation').innerText = data.remaining.vacation;
+    const sickEl = document.getElementById('leave-quota-sick');
+    const personalEl = document.getElementById('leave-quota-personal');
+    const vacationEl = document.getElementById('leave-quota-vacation');
+    if (sickEl) sickEl.innerText = data.remaining.sick;
+    if (personalEl) personalEl.innerText = data.remaining.personal;
+    if (vacationEl) vacationEl.innerText = data.remaining.vacation;
     
     let histHtml = '';
     data.history.forEach(h => {
-      histHtml += `<tr>
-        <td>${h.date}</td>
-        <td>${h.type}</td>
-        <td>${h.status}</td>
+      let statusBadge = `<span style="background: #f1f5f9; color: #475569; padding: 4px 10px; border-radius: 20px; font-weight: 600; font-size: 12px;">${h.status}</span>`;
+      if (h.status === 'อนุมัติ') {
+        statusBadge = `<span style="background: #dcfce7; color: #166534; padding: 4px 12px; border-radius: 20px; font-weight: 600; font-size: 12px; display: inline-flex; align-items: center; gap: 4px;">✅ อนุมัติ</span>`;
+      } else if (h.status === 'รอตรวจสอบ' || h.status.includes('รอ')) {
+        statusBadge = `<span style="background: #fef9c3; color: #854d0e; padding: 4px 12px; border-radius: 20px; font-weight: 600; font-size: 12px; display: inline-flex; align-items: center; gap: 4px;">⏳ รอตรวจสอบ</span>`;
+      } else if (h.status === 'ไม่อนุมัติ') {
+        statusBadge = `<span style="background: #fee2e2; color: #991b1b; padding: 4px 12px; border-radius: 20px; font-weight: 600; font-size: 12px; display: inline-flex; align-items: center; gap: 4px;">❌ ไม่อนุมัติ</span>`;
+      }
+
+      histHtml += `<tr style="transition: background 0.15s; border-bottom: 1px solid #f1f5f9;">
+        <td style="padding: 14px; font-weight: 500; color: #334155;">${h.date}</td>
+        <td style="padding: 14px;"><span style="background: #eff6ff; color: #2563eb; padding: 3px 10px; border-radius: 6px; font-size: 12.5px; font-weight: 600;">${h.type}</span></td>
+        <td style="padding: 14px; text-align: center;">${statusBadge}</td>
       </tr>`;
     });
-    document.getElementById('leave-history-table').innerHTML = histHtml || '<tr><td colspan="3" style="text-align:center;">ไม่มีประวัติการลา</td></tr>';
+    const historyTable = document.getElementById('leave-history-table');
+    if (historyTable) {
+      historyTable.innerHTML = histHtml || '<tr><td colspan="3" style="text-align:center; padding: 36px; color: #94a3b8;">✨ ยังไม่มีประวัติการยื่นคำขอลา</td></tr>';
+    }
   }).catch(err => console.error(err));
 
   if (sessionUser.Role === 'admin' || sessionUser.Role === 'manager') {
     apiCall('getPendingLeaves', []).then(list => {
       let pendHtml = '';
       list.forEach(p => {
-        const fileLink = (p.fileUrl && p.fileUrl !== 'ไม่มีไฟล์แนบ') ? `<a href="${p.fileUrl}" target="_blank" style="color:#3B82F6;text-decoration:underline;">ดูไฟล์</a>` : '-';
-        pendHtml += `<tr>
-          <td>${p.name} (${p.department})</td>
-          <td>${p.type}</td>
-          <td>${p.date}</td>
-          <td>${p.days}</td>
-          <td>${p.reason}</td>
-          <td>${fileLink}</td>
-          <td>
-            <button onclick="approveLeave(${p.id})" style="background:#10B981;color:white;padding:5px 10px;border-radius:5px;border:none;cursor:pointer;margin-right:5px;font-family:inherit;">อนุมัติ</button>
-            <button onclick="rejectLeave(${p.id})" style="background:#EF4444;color:white;padding:5px 10px;border-radius:5px;border:none;cursor:pointer;font-family:inherit;">ไม่อนุมัติ</button>
+        const fileLink = (p.fileUrl && p.fileUrl !== 'ไม่มีไฟล์แนบ') ? `<a href="${p.fileUrl}" target="_blank" style="display: inline-flex; align-items: center; gap: 4px; background: #eff6ff; color: #2563eb; padding: 4px 10px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 12px;">📎 ดูเอกสาร</a>` : `<span style="color: #94a3b8; font-size: 12px;">-</span>`;
+        pendHtml += `<tr style="border-bottom: 1px solid #fef3c7; transition: background 0.15s;">
+          <td style="padding: 14px; font-weight: 600; color: #1e293b;">${p.name} <div style="font-size: 11.5px; font-weight: normal; color: #64748b;">${p.department}</div></td>
+          <td style="padding: 14px;"><span style="background: #fffbeb; border: 1px solid #fde68a; color: #d97706; padding: 3px 10px; border-radius: 6px; font-size: 12.5px; font-weight: 600;">${p.type}</span></td>
+          <td style="padding: 14px; color: #334155; font-weight: 500;">${p.date}</td>
+          <td style="padding: 14px; color: #1e293b; font-weight: 700;">${p.days}</td>
+          <td style="padding: 14px; color: #475569; max-width: 200px;">${p.reason}</td>
+          <td style="padding: 14px;">${fileLink}</td>
+          <td style="padding: 14px; text-align: center; white-space: nowrap;">
+            <button onclick="approveLeave(${p.id})" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 6px 14px; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; font-size: 12.5px; box-shadow: 0 2px 4px rgba(16, 185, 129, 0.2); margin-right: 6px;">✅ อนุมัติ</button>
+            <button onclick="rejectLeave(${p.id})" style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; padding: 6px 14px; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; font-size: 12.5px; box-shadow: 0 2px 4px rgba(239, 68, 68, 0.2);">❌ ไม่อนุมัติ</button>
           </td>
         </tr>`;
       });
-      document.getElementById('leave-pending-table').innerHTML = pendHtml || '<tr><td colspan="7" style="text-align:center;">ไม่มีคำขอที่รออนุมัติ</td></tr>';
+      const pendingTable = document.getElementById('leave-pending-table');
+      if (pendingTable) {
+        pendingTable.innerHTML = pendHtml || '<tr><td colspan="7" style="text-align:center; padding: 36px; color: #b45309;">🎉 ยอดเยี่ยม! ไม่มีคำขอที่รออนุมัติค้างอยู่</td></tr>';
+      }
     }).catch(err => console.error(err));
   }
 };
