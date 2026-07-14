@@ -1,3 +1,8 @@
+function getActiveSessionUser() {
+  const u = window.sessionUser || window.shiftFlowCurrentUser || (typeof currentSessionUser === 'function' ? currentSessionUser() : null);
+  if (u) window.sessionUser = u;
+  return u;
+}
 window.localLeaveHistoryList = [];
 window.currentLeaveRemaining = { sick: 0, personal: 0, vacation: 0 };
 
@@ -27,6 +32,7 @@ window.apiCall = function(action, args = [], payloadObj = null) {
 };
 
 window.loadLeaveView = function() {
+  const sessionUser = getActiveSessionUser();
   if (!sessionUser) return;
   const adminContainer = document.getElementById('leave-admin-container');
   if (adminContainer) {
@@ -134,6 +140,7 @@ window.loadLeaveView = function() {
    🛡️ ระบบตรวจสอบโควตาวันลาคงเหลือก่อนยื่น (Client-Side Validation)
    ========================================================== */
 window.checkLeaveQuotaOnForm = function() {
+  const sessionUser = getActiveSessionUser();
   const type = document.getElementById('leave-type')?.value;
   const start = document.getElementById('leave-start')?.value;
   const end = document.getElementById('leave-end')?.value;
@@ -181,6 +188,7 @@ window.checkLeaveQuotaOnForm = function() {
    🖨️ ระบบพิมพ์ใบลา A4 ตามรูปแบบเดิม (Print A4 Layout)
    ========================================================== */
 window.printLeaveA4 = function(index) {
+  const sessionUser = getActiveSessionUser();
   const item = window.localLeaveHistoryList[index];
   if (!item) return;
 
@@ -212,6 +220,7 @@ window.printLeaveA4 = function(index) {
 };
 
 window.printLeaveA4Admin = function(index) {
+  const sessionUser = getActiveSessionUser();
   const item = (window.allEmployeesLeaveHistoryList || [])[index];
   if (!item) return;
 
@@ -243,6 +252,7 @@ window.printLeaveA4Admin = function(index) {
 };
 
 window.submitLeave = function(event) {
+  const sessionUser = getActiveSessionUser();
   event.preventDefault();
   const btn = document.getElementById('leave-submit-btn');
   const text = document.getElementById('leave-submit-text');
