@@ -803,7 +803,7 @@ window.printLeaveA4Admin = function(index) {
 
   if (empNameEl) empNameEl.innerText = item.name || item.empName || 'พนักงาน';
   if (dateEl) dateEl.innerText = today;
-  if (titleEl) titleEl.innerText = "ใบขออนุมัติลางาน (สำหรับผู้บริหาร)";
+  if (titleEl) titleEl.innerText = "ใบขออนุมัติลางาน";
 
   const cleanDate = typeof window.cleanLeaveDateStr === 'function' ? window.cleanLeaveDateStr(item.date) : item.date;
   const detailsOrReason = item.reason || item.details || item.type || '-';
@@ -3556,7 +3556,7 @@ Chart.defaults.plugins.tooltip.bodyFont = { size: 12 };
     </div>
   </div>
 
-    <!-- =========================================================
+      <!-- =========================================================
        🖨️ A4 PRINT REPORT SECTION (รูปแบบเดิมจากระบบลาเก่า)
        ========================================================= -->
   <div id="globalPrintReport" class="print-only hidden" style="display: none; padding: 20px; background: #fff; color: #000;">
@@ -3583,13 +3583,13 @@ Chart.defaults.plugins.tooltip.bodyFont = { size: 12 };
       </table>
     </div>
 
-    <div class="signature-box print-only hidden grid grid-cols-2 gap-10 text-center mt-12" style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px; text-align: center; margin-top: 60px; font-size: 15px;">
-      <div class="space-y-5">
+    <div class="signature-box print-only hidden" style="display: table; width: 100%; table-layout: fixed; margin-top: 60px; font-size: 15px; page-break-inside: avoid;">
+      <div class="space-y-5" style="display: table-cell; width: 50%; vertical-align: top; text-align: center; padding-right: 20px;">
         <p style="margin: 0 0 24px 0;">ลงชื่อ...........................................................</p>
         <p style="margin: 0 0 8px 0;">(...........................................................)</p>
         <p style="margin: 0;">พนักงานผู้จัดพิมพ์รายงาน/หัวหน้าพนักงานรักษาความปลอดภัย</p>
       </div>
-      <div class="space-y-5">
+      <div class="space-y-5" style="display: table-cell; width: 50%; vertical-align: top; text-align: center; padding-left: 20px;">
         <p style="margin: 0 0 24px 0;">ทราบ / ลงชื่อ...........................................................</p>
         <p style="margin: 0 0 8px 0;">(...........................................................)</p>
         <p style="margin: 0;">ผู้จัดการเขต (ผู้อนุมัติ)</p>
@@ -3628,7 +3628,8 @@ Chart.defaults.plugins.tooltip.bodyFont = { size: 12 };
   th { border: 1px solid #000 !important; padding: 10px !important; background-color: #f3f4f6 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; font-weight: bold !important; color: #000 !important; }
   td { border: 1px solid #000 !important; padding: 10px !important; vertical-align: top; color: #000 !important; }
   tr { page-break-inside: avoid !important; }
-  .signature-box { page-break-inside: avoid !important; margin-top: 50px !important; }
+  .signature-box { display: table !important; width: 100% !important; table-layout: fixed !important; margin-top: 60px !important; page-break-inside: avoid !important; }
+  .signature-box > div { display: table-cell !important; width: 50% !important; vertical-align: top !important; text-align: center !important; }
 }
 </style>
 `;
