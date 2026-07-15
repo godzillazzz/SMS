@@ -3583,19 +3583,20 @@ Chart.defaults.plugins.tooltip.bodyFont = { size: 12 };
       </table>
     </div>
 
-    <div class="signature-box print-only hidden" style="display: table; width: 100%; table-layout: fixed; margin-top: 60px; font-size: 15px; page-break-inside: avoid;">
-      <div class="space-y-5" style="display: table-cell; width: 50%; vertical-align: top; text-align: center; padding-right: 20px;">
-        <p style="margin: 0 0 24px 0;">ลงชื่อ...........................................................</p>
-        <p style="margin: 0 0 8px 0;">(...........................................................)</p>
-        <p style="margin: 0;">พนักงานผู้จัดพิมพ์รายงาน/หัวหน้าพนักงานรักษาความปลอดภัย</p>
+        <div class="signature-box print-only hidden" style="display: block; width: 100%; margin-top: 45px; font-size: 15px; page-break-inside: avoid; text-align: center;">
+      <div style="display: block; margin: 0 auto 55px auto; width: 85%; max-width: 680px; text-align: center; page-break-inside: avoid;">
+        <p style="margin: 0 0 28px 0;">ลงชื่อ........................................................................................................</p>
+        <p style="margin: 0 0 8px 0;">(........................................................................................................)</p>
+        <p style="margin: 0; font-weight: 500;">พนักงานผู้จัดพิมพ์รายงาน/หัวหน้าพนักงานรักษาความปลอดภัย</p>
       </div>
-      <div class="space-y-5" style="display: table-cell; width: 50%; vertical-align: top; text-align: center; padding-left: 20px;">
-        <p style="margin: 0 0 24px 0;">ทราบ / ลงชื่อ...........................................................</p>
-        <p style="margin: 0 0 8px 0;">(...........................................................)</p>
-        <p style="margin: 0;">ผู้จัดการเขต (ผู้อนุมัติ)</p>
+      <div style="display: block; margin: 0 auto; width: 85%; max-width: 680px; text-align: center; page-break-inside: avoid;">
+        <p style="margin: 0 0 28px 0;">ทราบ / ลงชื่อ........................................................................................................</p>
+        <p style="margin: 0 0 8px 0;">(........................................................................................................)</p>
+        <p style="margin: 0; font-weight: 500;">ผู้จัดการเขต (ผู้อนุมัติ)</p>
       </div>
     </div>
   </div>
+</div>
 
 <style>
 @keyframes spin {
@@ -3628,8 +3629,8 @@ Chart.defaults.plugins.tooltip.bodyFont = { size: 12 };
   th { border: 1px solid #000 !important; padding: 10px !important; background-color: #f3f4f6 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; font-weight: bold !important; color: #000 !important; }
   td { border: 1px solid #000 !important; padding: 10px !important; vertical-align: top; color: #000 !important; }
   tr { page-break-inside: avoid !important; }
-  .signature-box { display: table !important; width: 100% !important; table-layout: fixed !important; margin-top: 60px !important; page-break-inside: avoid !important; }
-  .signature-box > div { display: table-cell !important; width: 50% !important; vertical-align: top !important; text-align: center !important; }
+  .signature-box { display: block !important; width: 100% !important; margin-top: 45px !important; page-break-inside: avoid !important; text-align: center !important; }
+  .signature-box > div { display: block !important; width: 85% !important; margin: 0 auto 55px auto !important; page-break-inside: avoid !important; text-align: center !important; }
 }
 </style>
 `;
