@@ -3282,6 +3282,9 @@ Chart.defaults.plugins.tooltip.bodyFont = { size: 12 };
         actions = `<button class="btn btn-primary" data-action="update-user" data-user-id="${id}">บันทึกสิทธิ์</button>${primary ? '' : `
           <button class="btn btn-ghost" data-action="suspend-user" data-user-id="${id}">ระงับ</button>`}`;
       }
+            if (admin && !primary && String(user.Email || '').toLowerCase() !== String((currentData().session || {}).User || '').toLowerCase()) {
+        actions += `<button class="btn btn-ghost" style="background: #fef3c7; color: #d97706; border: 1px solid #f59e0b; font-weight: 600; margin-left: 4px;" onclick="window.impersonateUser('${id}')" title="จำลองการเข้าใช้งานในมุมมองของพนักงานคนนี้">🐞 View As</button>`;
+      }
       return `
         <tr data-user-row="${id}">
           <td style="text-align:left;font-weight:600;">${id}${primary ? '<br><small>Primary Admin</small>' : ''}</td>
@@ -4463,6 +4466,106 @@ Chart.defaults.plugins.tooltip.bodyFont = { size: 12 };
     suppressClickIn = null;
   }, true);
 })();
+</script>
+<script>
+
+// ==========================================
+// 🐞 IMPERSONATION MODE (View As User Sandbox)
+// ==========================================
+window.impersonateUser = function(userId) {
+  if (!confirm('🐞 ยืนยันเข้าตรวจสอบระบบในมุมมองของ User ID: ' + userId + ' ใช่หรือไม่?')) return;
+  const currentSession = JSON.parse(localStorage.getItem('shiftflow_session_v1') || sessionStorage.getItem('shiftflow_session_v1') || '{}');
+  if (!currentSession || (!currentSession.Email && !currentSession.EmployeeID)) {
+    alert('ไม่พบเซสชั่น Admin ของคุณ กรุณาเข้าสู่ระบบอีกครั้ง');
+    return;
+  }
+  if (!localStorage.getItem('shiftflow_original_admin_v1')) {
+    localStorage.setItem('shiftflow_original_admin_v1', JSON.stringify(currentSession));
+  }
+  
+  let targetUser = null;
+  if (window.currentData && typeof window.currentData === 'function') {
+    const data = window.currentData();
+    if (data && data.users) {
+      targetUser = data.users.find(u => String(u['User ID']) === String(userId) || String(u.Email) === String(userId) || String(u.EmployeeID) === String(userId));
+    }
+  }
+  
+  if (!targetUser) {
+    targetUser = {
+      'User ID': userId,
+      EmployeeID: userId,
+      Name: 'พนักงานรหัส ' + userId,
+      FullName: 'พนักงานรหัส ' + userId,
+      Role: 'Viewer',
+      Department: 'ส่วนปฏิบัติการระบบท่อเขต 11',
+      Zone: 'เขต 11',
+      Email: userId + '@ptt.com'
+    };
+  }
+  
+  const mockSession = {
+    EmployeeID: targetUser['User ID'] || targetUser.EmployeeID || userId,
+    Name: targetUser.Name || targetUser.FullName || ('พนักงานรหัส ' + userId),
+    FullName: targetUser.FullName || targetUser.Name || ('พนักงานรหัส ' + userId),
+    Email: targetUser.Email || (userId + '@ptt.com'),
+    Role: targetUser.Role || 'Viewer',
+    Department: targetUser.Department || 'ส่วนปฏิบัติการระบบท่อเขต 11',
+    Zone: targetUser.Zone || 'เขต 11',
+    Status: 'Active',
+    isImpersonated: true,
+    originalAdminEmail: currentSession.Email || currentSession.email || 'Admin'
+  };
+  
+  localStorage.setItem('shiftflow_session_v1', JSON.stringify(mockSession));
+  sessionStorage.setItem('shiftflow_session_v1', JSON.stringify(mockSession));
+  localStorage.setItem('shiftflow_is_impersonating', 'true');
+  
+  alert('🐞 โหมด View As User: เข้าสู่ระบบในมุมมองของ ' + mockSession.Name + ' (Role: ' + mockSession.Role + ') เรียบร้อยแล้ว!');
+  location.reload();
+};
+
+window.exitImpersonation = function() {
+  if (!confirm('⬅️ ยืนยันกลับสู่บัญชี Admin ของคุณใช่หรือไม่?')) return;
+  const originalAdminStr = localStorage.getItem('shiftflow_original_admin_v1');
+  if (originalAdminStr) {
+    localStorage.setItem('shiftflow_session_v1', originalAdminStr);
+    sessionStorage.setItem('shiftflow_session_v1', originalAdminStr);
+    localStorage.removeItem('shiftflow_original_admin_v1');
+    localStorage.removeItem('shiftflow_is_impersonating');
+    alert('✅ กลับสู่บัญชี Admin ของคุณเรียบร้อยแล้ว');
+    location.reload();
+  } else {
+    localStorage.removeItem('shiftflow_session_v1');
+    sessionStorage.removeItem('shiftflow_session_v1');
+    localStorage.removeItem('shiftflow_is_impersonating');
+    location.reload();
+  }
+};
+
+window.checkImpersonationStatus = function() {
+  const originalAdminStr = localStorage.getItem('shiftflow_original_admin_v1');
+  const isImpersonating = localStorage.getItem('shiftflow_is_impersonating') === 'true';
+  if (originalAdminStr && isImpersonating) {
+    const currentSession = JSON.parse(localStorage.getItem('shiftflow_session_v1') || sessionStorage.getItem('shiftflow_session_v1') || '{}');
+    let banner = document.getElementById('impersonation-banner');
+    if (!banner) {
+      banner = document.createElement('div');
+      banner.id = 'impersonation-banner';
+      banner.style.cssText = 'background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white; padding: 10px 20px; font-weight: 600; font-size: 14px; text-align: center; position: sticky; top: 0; z-index: 999999; display: flex; justify-content: center; align-items: center; gap: 16px; box-shadow: 0 4px 12px rgba(217, 119, 6, 0.4); flex-wrap: wrap;';
+      banner.innerHTML = `
+        <span>🚨 <b>โหมด Debug (View As):</b> คุณกำลังใช้งานในมุมมองของ <u>${currentSession.Name || 'พนักงาน'}</u> (Role: ${currentSession.Role || 'Viewer'})</span>
+        <button onclick="window.exitImpersonation()" style="background: white; color: #d97706; padding: 5px 14px; border-radius: 6px; border: none; font-weight: bold; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.15); transition: transform 0.1s;">⬅️ กลับสู่บัญชี Admin ของคุณ</button>
+      `;
+      if (document.body) document.body.prepend(banner);
+      else window.addEventListener('DOMContentLoaded', () => document.body.prepend(banner));
+    }
+  }
+};
+if (typeof window !== 'undefined') {
+  setTimeout(() => window.checkImpersonationStatus(), 300);
+}
+
 </script>
 </body>
 </html>
