@@ -1,0 +1,18 @@
+# Backups
+*.backup.txt
+สำรอง/
+*backup*
+
+# Clasp config
+.clasp.json
+.claspignore
+
+# Local Scripts
+อัปเดตระบบ.bat
+
+# OS Files
+Thumbs.db
+Desktop.ini
+
+# Logs
+*.log

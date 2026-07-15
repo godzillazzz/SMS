@@ -1776,8 +1776,15 @@ window.renderView = function(viewId) {
       if (user?.email && user?.token && window.google?.script?.run) {
         google.script.run
           .withSuccessHandler((validatedUser) => {
-            sessionStorage.setItem(storageKey, JSON.stringify(validatedUser));
-            showApp(validatedUser);
+            const isImp = localStorage.getItem('shiftflow_is_impersonating') === 'true' || sessionStorage.getItem('shiftflow_is_impersonating') === 'true';
+            if (isImp) {
+              const updatedUser = Object.assign({}, user, { token: validatedUser.token });
+              sessionStorage.setItem(storageKey, JSON.stringify(updatedUser));
+              showApp(updatedUser);
+            } else {
+              sessionStorage.setItem(storageKey, JSON.stringify(validatedUser));
+              showApp(validatedUser);
+            }
           })
           .withFailureHandler(() => {
             sessionStorage.removeItem(storageKey);
