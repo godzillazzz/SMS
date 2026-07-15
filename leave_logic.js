@@ -194,18 +194,20 @@ window.printLeaveA4 = function(index) {
   const dateEl = document.getElementById('printDate');
   const titleEl = document.getElementById('printReportTitle');
   const rowBody = document.getElementById('printSingleRowBody');
+  const printContainer = document.getElementById('globalPrintReport') || document.getElementById('leave-a4-print-area');
 
-  if (empNameEl) empNameEl.innerText = sessionUser.FullName || sessionUser.Name || 'พนักงาน';
+  if (empNameEl) empNameEl.innerText = sessionUser?.FullName || sessionUser?.Name || 'พนักงาน';
   if (dateEl) dateEl.innerText = today;
   if (titleEl) titleEl.innerText = "ใบขออนุมัติลางาน";
 
+  const cleanDate = typeof window.cleanLeaveDateStr === 'function' ? window.cleanLeaveDateStr(item.date) : item.date;
   const detailsOrReason = item.reason || item.details || item.type || '-';
   const daysText = item.days ? `${item.days} วัน` : '1 วัน';
 
   if (rowBody) {
     rowBody.innerHTML = `
       <tr>
-        <td style="padding: 12px; border: 1px solid #000; text-align: center; font-weight: 500;">${item.date}</td>
+        <td style="padding: 12px; border: 1px solid #000; text-align: center; font-weight: 500;">${cleanDate}</td>
         <td style="padding: 12px; border: 1px solid #000; text-align: center; font-weight: bold; color: #1d4ed8;">${item.type}</td>
         <td style="padding: 12px; border: 1px solid #000; text-align: center;">${daysText}</td>
         <td style="padding: 12px; border: 1px solid #000; text-align: left;">${detailsOrReason}</td>
@@ -226,18 +228,20 @@ window.printLeaveA4Admin = function(index) {
   const dateEl = document.getElementById('printDate');
   const titleEl = document.getElementById('printReportTitle');
   const rowBody = document.getElementById('printSingleRowBody');
+  const printContainer = document.getElementById('globalPrintReport') || document.getElementById('leave-a4-print-area');
 
   if (empNameEl) empNameEl.innerText = item.name || item.empName || 'พนักงาน';
   if (dateEl) dateEl.innerText = today;
   if (titleEl) titleEl.innerText = "ใบขออนุมัติลางาน (สำหรับผู้บริหาร)";
 
+  const cleanDate = typeof window.cleanLeaveDateStr === 'function' ? window.cleanLeaveDateStr(item.date) : item.date;
   const detailsOrReason = item.reason || item.details || item.type || '-';
   const daysText = item.days ? `${item.days} วัน` : '1 วัน';
 
   if (rowBody) {
     rowBody.innerHTML = `
       <tr>
-        <td style="padding: 12px; border: 1px solid #000; text-align: center; font-weight: 500;">${item.date}</td>
+        <td style="padding: 12px; border: 1px solid #000; text-align: center; font-weight: 500;">${cleanDate}</td>
         <td style="padding: 12px; border: 1px solid #000; text-align: center; font-weight: bold; color: #1d4ed8;">${item.type}</td>
         <td style="padding: 12px; border: 1px solid #000; text-align: center;">${daysText}</td>
         <td style="padding: 12px; border: 1px solid #000; text-align: left;">${detailsOrReason}</td>
