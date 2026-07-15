@@ -1823,6 +1823,38 @@ function exportApprovedSchedule(request, token, retryCount) {
           return [readableExportFontColor_(shift.Color), '#0F172A', '#0F172A', '#0F172A'];
         }));
       }
+      // Add signature box at bottom right (65% width) with margin-bottom 28px formatting for PDF export
+      if (format === 'pdf') {
+        const sigStartRow = legendStart + (shiftTypes.length ? shiftTypes.length + 3 : 4);
+        const startCol = Math.max(1, Math.floor(totalColumns * 0.35) + 1);
+        const numCols = totalColumns - startCol + 1;
+        
+        // Box 1: พนักงานผู้จัดพิมพ์รายงาน/หัวหน้าพนักงานรักษาความปลอดภัย (Export PDF)
+        const box1Line1 = sheet.getRange(sigStartRow, startCol, 1, numCols).merge();
+        box1Line1.setValue('ลงชื่อ........................................................................................................').setFontFamily('Sarabun').setFontSize(10).setFontWeight('bold').setHorizontalAlignment('center').setVerticalAlignment('middle');
+        sheet.setRowHeight(sigStartRow, 34);
+        
+        const box1Line2 = sheet.getRange(sigStartRow + 1, startCol, 1, numCols).merge();
+        box1Line2.setValue('(........................................................................................................)').setFontFamily('Sarabun').setFontSize(10).setHorizontalAlignment('center').setVerticalAlignment('middle');
+        sheet.setRowHeight(sigStartRow + 1, 28);
+        
+        const box1Line3 = sheet.getRange(sigStartRow + 2, startCol, 1, numCols).merge();
+        box1Line3.setValue('พนักงานผู้จัดพิมพ์รายงาน / หัวหน้าพนักงานรักษาความปลอดภัย').setFontFamily('Sarabun').setFontSize(10).setFontWeight('bold').setHorizontalAlignment('center').setVerticalAlignment('top');
+        sheet.setRowHeight(sigStartRow + 2, 38); // extra height to simulate margin-bottom: 28px
+        
+        // Box 2: ผู้จัดการเขต (ผู้อนุมัติ)
+        const box2Line1 = sheet.getRange(sigStartRow + 4, startCol, 1, numCols).merge();
+        box2Line1.setValue('ทราบ / ลงชื่อ........................................................................................................').setFontFamily('Sarabun').setFontSize(10).setFontWeight('bold').setHorizontalAlignment('center').setVerticalAlignment('middle');
+        sheet.setRowHeight(sigStartRow + 4, 34);
+        
+        const box2Line2 = sheet.getRange(sigStartRow + 5, startCol, 1, numCols).merge();
+        box2Line2.setValue('(........................................................................................................)').setFontFamily('Sarabun').setFontSize(10).setHorizontalAlignment('center').setVerticalAlignment('middle');
+        sheet.setRowHeight(sigStartRow + 5, 28);
+        
+        const box2Line3 = sheet.getRange(sigStartRow + 6, startCol, 1, numCols).merge();
+        box2Line3.setValue('ผู้จัดการเขต (ผู้อนุมัติ)').setFontFamily('Sarabun').setFontSize(10).setFontWeight('bold').setHorizontalAlignment('center').setVerticalAlignment('top');
+        sheet.setRowHeight(sigStartRow + 6, 38); // extra height to simulate margin-bottom: 28px
+      }
       // Flush in small groups so exporting all departments does not leave one
       // very large queue of pending Spreadsheet service operations.
       if ((reportIndex + 1) % 3 === 0) {
