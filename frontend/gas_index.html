@@ -2753,7 +2753,7 @@ Chart.defaults.plugins.tooltip.bodyFont = { size: 12 };
   };
 
   const renderMaster = () => {
-    if (!isAdmin() && !isManager()) return panel('Master Data', 'เฉพาะ Admin หรือ Manager เท่านั้น', '<p style="padding:32px;text-align:center;color:#64748B;font-size:15px;">🔒 บัญชีของคุณ (Viewer) ไม่มีสิทธิ์จัดการหรือเข้าดูข้อมูล Master Data</p>');
+    if (!isAdmin()) return panel('Master Data', 'สงวนสิทธิ์เฉพาะ Admin เท่านั้น', '<p style="padding:32px;text-align:center;color:#64748B;font-size:15px;">🔒 บัญชีของคุณ (' + (currentSessionUser().role || currentSessionUser().Role || 'User') + ') ไม่มีสิทธิ์เข้าถึงหรือจัดการข้อมูลหลัก Master Data (สงวนสิทธิ์เฉพาะ Admin)</p>');
     const data = currentData();
     const admin = isAdmin();
     const employeeCreator = canAddEmployees();
@@ -2875,7 +2875,7 @@ Chart.defaults.plugins.tooltip.bodyFont = { size: 12 };
 
 
   const renderShiftSetup = () => {
-    if (!isAdmin() && !isManager()) return panel('Shift Setup', 'เฉพาะ Admin หรือ Manager เท่านั้น', '<p style="padding:32px;text-align:center;color:#64748B;font-size:15px;">🔒 บัญชีของคุณ (Viewer) ไม่มีสิทธิ์จัดการหรือเข้าดูตั้งค่ารหัสกะทำงาน</p>');
+    if (!isAdmin()) return panel('Shift Setup', 'สงวนสิทธิ์เฉพาะ Admin เท่านั้น', '<p style="padding:32px;text-align:center;color:#64748B;font-size:15px;">🔒 บัญชีของคุณ (' + (currentSessionUser().role || currentSessionUser().Role || 'User') + ') ไม่มีสิทธิ์เข้าถึงหรือตั้งค่ารหัสกะทำงาน (สงวนสิทธิ์เฉพาะ Admin)</p>');
     const admin = isAdmin();
     const protectedCodes = new Set(['D', 'N', 'OFF', 'AL']);
     const rows = currentData().shiftTypes.map((shift) => {
@@ -3575,7 +3575,7 @@ Chart.defaults.plugins.tooltip.bodyFont = { size: 12 };
 `;
   };
   const renderSettings = () => {
-    if (!isAdmin() && !isManager()) return panel('Settings', 'เฉพาะ Admin หรือ Manager เท่านั้น', '<p style="padding:32px;text-align:center;color:#64748B;font-size:15px;">🔒 บัญชีของคุณ (Viewer) ไม่มีสิทธิ์เข้าถึงหรือแก้ไขการตั้งค่าระบบ</p>');
+    if (!isAdmin()) return panel('Settings', 'สงวนสิทธิ์เฉพาะ Admin เท่านั้น', '<p style="padding:32px;text-align:center;color:#64748B;font-size:15px;">🔒 บัญชีของคุณ (' + (currentSessionUser().role || currentSessionUser().Role || 'User') + ') ไม่มีสิทธิ์เข้าถึงหน้าตั้งค่าระบบ Settings (สงวนสิทธิ์เฉพาะ Admin)</p>');
     const rows = (currentData().settings || []).map((setting) => `
       <tr>
         <td style="text-align:left;font-weight:600;">${safe(setting.Key)}</td>
@@ -3639,45 +3639,22 @@ Chart.defaults.plugins.tooltip.bodyFont = { size: 12 };
       .getUserAdministration(sessionToken());
   };
 
-  document.querySelectorAll('.nav-item').forEach((item) => {
-    item.addEventListener('click', (event) => {
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      document.querySelectorAll('.nav-item').forEach((nav) => nav.classList.remove('active'));
-      item.classList.add('active');
-      const view = getMenuView(item);
-      if (window.google?.script?.run) {
-        if (view === 'dashboard') {
-          renderView('dashboard');
-          window.shiftFlowReloadDashboard?.();
-          return;
-        }
-        if (view === 'calendar') {
-          refreshCalendarData();
-          return;
-        }
-        if (view === 'master') {
-          refreshMasterData();
-          return;
-        }
-        if (view === 'users') {
-          refreshUserData();
-          return;
-        }
-        const subEl = document.querySelector('.page-sub');
-        if (subEl) subEl.textContent = 'กำลังโหลดข้อมูลล่าสุดจาก Google Sheet...';
-        google.script.run
-          .withSuccessHandler((data) => {
-            window.shiftFlowData = data;
-            renderView(view);
-          })
-          .withFailureHandler(() => renderView(view))
-          .getAppData(sessionToken());
-        return;
+  const roleStr = String(user.role || user.Role || '').trim().toLowerCase();
+    const isAdminRole = roleStr === 'admin' || roleStr.includes('admin') || roleStr.includes('ผู้ดูแล');
+    const isManagerRole = roleStr === 'manager' || roleStr.includes('manager') || roleStr.includes('หัวหน้า');
+    document.querySelectorAll('.nav-item').forEach((item) => {
+      const txt = item.textContent.trim().toLowerCase();
+      if (txt.includes('master data') || txt.includes('shift setup') || txt.includes('settings')) {
+        item.hidden = !isAdminRole;
+        item.style.display = isAdminRole ? '' : 'none';
+      } else if (txt.includes('rule checking') || txt.includes('users & roles') || item.hasAttribute('data-user-approver')) {
+        item.hidden = (!isAdminRole && !isManagerRole);
+        item.style.display = (isAdminRole || isManagerRole) ? '' : 'none';
+      } else {
+        item.hidden = false;
+        item.style.display = '';
       }
-      renderView(view);
-    }, true);
-  });
+    });
 
   const refreshMasterData = (message) => {
     google.script.run
@@ -4560,25 +4537,34 @@ window.checkImpersonationStatus = function() {
       else window.addEventListener('DOMContentLoaded', () => document.body.prepend(banner));
     }
     
-    // Enforce strict Viewer UI restrictions
+    // Enforce strict Admin vs Manager vs Viewer UI restrictions EXACTLY as real account
     const r = String(currentSession.Role || currentSession.role || '').trim().toLowerCase();
-    const isAdmOrMgr = (r === 'admin' || r === 'manager' || r.includes('admin') || r.includes('manager') || r.includes('ผู้ดูแล') || r.includes('หัวหน้า'));
-    if (!isAdmOrMgr) {
-      const adminContainer = document.getElementById('leave-admin-container');
-      if (adminContainer) adminContainer.style.display = 'none';
-      document.querySelectorAll('.nav-item').forEach((item) => {
-        const txt = item.textContent.trim().toLowerCase();
-        if (txt.includes('users & roles') || txt.includes('settings') || txt.includes('master data') || txt.includes('shift setup') || txt.includes('rule checking') || item.hasAttribute('data-user-approver')) {
-          item.hidden = true;
-          item.style.display = 'none';
-        }
-      });
-      // If currently active tab is one of the restricted ones, switch to dashboard
-      const activeNav = document.querySelector('.nav-item.active');
-      if (activeNav && (activeNav.hidden || activeNav.style.display === 'none')) {
-        const dashNav = Array.from(document.querySelectorAll('.nav-item')).find(n => n.textContent.trim().toLowerCase().includes('dashboard'));
-        if (dashNav) dashNav.click();
+    const isAdminRole = r === 'admin' || r.includes('admin') || r.includes('ผู้ดูแล');
+    const isManagerRole = r === 'manager' || r.includes('manager') || r.includes('หัวหน้า');
+    
+    const adminContainer = document.getElementById('leave-admin-container');
+    if (adminContainer) {
+      adminContainer.style.display = (isAdminRole || isManagerRole) ? 'block' : 'none';
+    }
+
+    document.querySelectorAll('.nav-item').forEach((item) => {
+      const txt = item.textContent.trim().toLowerCase();
+      if (txt.includes('master data') || txt.includes('shift setup') || txt.includes('settings')) {
+        item.hidden = !isAdminRole;
+        item.style.display = isAdminRole ? '' : 'none';
+      } else if (txt.includes('rule checking') || txt.includes('users & roles') || item.hasAttribute('data-user-approver')) {
+        item.hidden = (!isAdminRole && !isManagerRole);
+        item.style.display = (isAdminRole || isManagerRole) ? '' : 'none';
+      } else {
+        item.hidden = false;
+        item.style.display = '';
       }
+    });
+
+    const activeNav = document.querySelector('.nav-item.active');
+    if (activeNav && (activeNav.hidden || activeNav.style.display === 'none')) {
+      const dashNav = Array.from(document.querySelectorAll('.nav-item')).find(n => n.textContent.trim().toLowerCase().includes('dashboard'));
+      if (dashNav) dashNav.click();
     }
   }
 };
