@@ -4246,16 +4246,22 @@ function ensureLeaveSheets_(spreadsheet) {
     quotaSheet.getRange("A1:D1").setFontWeight("bold").setBackground("#e0e0e0");
     quotaSheet.setFrozenRows(1);
   }
+  const cache = CacheService.getScriptCache();
+  if (!cache.get('quota_clean_v2')) {
     if (quotaSheet && quotaSheet.getLastRow() > 1) {
-    try {
-      const data = quotaSheet.getRange(2, 1, quotaSheet.getLastRow() - 1, 1).getValues();
-      for (let i = data.length - 1; i >= 0; i--) {
-        const val = String(data[i][0] || '').trim();
-        if (val === 'พนักงาน' || val === '' || val === 'undefined') {
-          quotaSheet.deleteRow(i + 2);
+      try {
+        const data = quotaSheet.getRange(2, 1, quotaSheet.getLastRow() - 1, 1).getValues();
+        let deletedAny = false;
+        for (let i = data.length - 1; i >= 0; i--) {
+          const val = String(data[i][0] || '').trim();
+          if (val === 'พนักงาน' || val === '' || val === 'undefined') {
+            quotaSheet.deleteRow(i + 2);
+            deletedAny = true;
+          }
         }
-      }
-    } catch (e) {}
+        if (!deletedAny) cache.put('quota_clean_v2', 'done', 600);
+      } catch (e) {}
+    }
   }
   return { leaveSheet, quotaSheet };
 }
@@ -4485,18 +4491,21 @@ function getLeaveSummary(token, filterName) {
   const leaveData = sheets.leaveSheet.getDataRange().getValues(); 
   let used = { "ลาป่วย": 0, "ลากิจ": 0, "ลาพักร้อน": 0 };
   let history = [];
+  let pendingList = [];
+  let allHistory = [];
+  const tz = spreadsheet.getSpreadsheetTimeZone() || "Asia/Bangkok";
+  const isAdmOrMgr = isAdminOrManager_(user);
   
   for (let j = leaveData.length - 1; j >= 1; j--) {
-    if (matchEmployeeNameFlexible_(leaveData[j][1], user, targetName)) {
-      const type = leaveData[j][3];
-      const days = Number(leaveData[j][6]) || 0;
-      const status = String(leaveData[j][9]).trim() || "รออนุมัติ";
-      
-      const tz = spreadsheet.getSpreadsheetTimeZone() || "Asia/Bangkok";
-      const d1 = formatDate_(leaveData[j][4], tz);
-      const d2 = formatDate_(leaveData[j][5], tz);
-      const dateStr = (d1 === d2 || !d2) ? d1 : (d1 + " ถึง " + d2);
+    const eName = String(leaveData[j][1]).trim();
+    const type = leaveData[j][3];
+    const days = Number(leaveData[j][6]) || 0;
+    const status = String(leaveData[j][9]).trim() || "รออนุมัติ";
+    const d1 = formatDate_(leaveData[j][4], tz);
+    const d2 = formatDate_(leaveData[j][5], tz);
+    const dateStr = (d1 === d2 || !d2) ? d1 : (d1 + " ถึง " + d2);
 
+    if (matchEmployeeNameFlexible_(leaveData[j][1], user, targetName)) {
       history.push({
         id: j + 1,
         date: dateStr,
@@ -4511,6 +4520,27 @@ function getLeaveSummary(token, filterName) {
         used[type] += days;
       }
     }
+
+    if (isAdmOrMgr) {
+      const item = {
+        id: j + 1,
+        name: eName,
+        empName: eName,
+        department: String(leaveData[j][2]).trim(),
+        date: dateStr,
+        startDate: d1,
+        endDate: d2,
+        type: type,
+        days: days,
+        reason: leaveData[j][7] ? String(leaveData[j][7]) : "",
+        status: status,
+        fileUrl: leaveData[j][8] || ""
+      };
+      allHistory.push(item);
+      if (status === "รออนุมัติ") {
+        pendingList.push(item);
+      }
+    }
   }
 
   return {
@@ -4521,7 +4551,9 @@ function getLeaveSummary(token, filterName) {
       personal: userQuota.personal - used["ลากิจ"],
       vacation: userQuota.vacation - used["ลาพักร้อน"]
     },
-    history: history
+    history: history,
+    pendingList: pendingList,
+    allHistory: allHistory
   };
 }
 
