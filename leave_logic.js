@@ -505,12 +505,24 @@ window.checkImpersonationStatus = function() {
       else window.addEventListener('DOMContentLoaded', () => document.body.prepend(banner));
     }
     
-    // Enforce hiding admin/manager containers right away when in impersonation mode with non-admin/non-manager role
+    // Enforce strict Viewer UI restrictions
     const r = String(currentSession.Role || currentSession.role || '').trim().toLowerCase();
-    if (r !== 'admin' && r !== 'manager' && !r.includes('admin') && !r.includes('manager') && !r.includes('ผู้ดูแล') && !r.includes('หัวหน้า')) {
+    const isAdmOrMgr = (r === 'admin' || r === 'manager' || r.includes('admin') || r.includes('manager') || r.includes('ผู้ดูแล') || r.includes('หัวหน้า'));
+    if (!isAdmOrMgr) {
       const adminContainer = document.getElementById('leave-admin-container');
       if (adminContainer) adminContainer.style.display = 'none';
-      document.querySelectorAll('[data-user-approver]').forEach((el) => el.hidden = true);
+      document.querySelectorAll('.nav-item').forEach((item) => {
+        const txt = item.textContent.trim().toLowerCase();
+        if (txt.includes('users & roles') || txt.includes('settings') || txt.includes('master data') || txt.includes('shift setup') || txt.includes('rule checking') || item.hasAttribute('data-user-approver')) {
+          item.hidden = true;
+          item.style.display = 'none';
+        }
+      });
+      const activeNav = document.querySelector('.nav-item.active');
+      if (activeNav && (activeNav.hidden || activeNav.style.display === 'none')) {
+        const dashNav = Array.from(document.querySelectorAll('.nav-item')).find(n => n.textContent.trim().toLowerCase().includes('dashboard'));
+        if (dashNav) dashNav.click();
+      }
     }
   }
 };
