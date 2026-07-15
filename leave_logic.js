@@ -232,7 +232,7 @@ window.printLeaveA4Admin = function(index) {
 
   if (empNameEl) empNameEl.innerText = item.name || item.empName || 'พนักงาน';
   if (dateEl) dateEl.innerText = today;
-  if (titleEl) titleEl.innerText = "ใบขออนุมัติลางาน (สำหรับผู้บริหาร)";
+  if (titleEl) titleEl.innerText = "ใบขออนุมัติลางาน";
 
   const cleanDate = typeof window.cleanLeaveDateStr === 'function' ? window.cleanLeaveDateStr(item.date) : item.date;
   const detailsOrReason = item.reason || item.details || item.type || '-';
