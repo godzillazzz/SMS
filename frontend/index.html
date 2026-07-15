@@ -1933,6 +1933,21 @@ Chart.defaults.plugins.tooltip.bodyFont = { size: 12 };
   };
 
   const renderSheetData = (data) => {
+    if (localStorage.getItem('shiftflow_is_impersonating') === 'true' || sessionStorage.getItem('shiftflow_is_impersonating') === 'true') {
+      try {
+        const mockUser = JSON.parse(sessionStorage.getItem('shiftflow.currentUser') || localStorage.getItem('shiftflow.currentUser') || '{}');
+        if (mockUser && (mockUser.Role || mockUser.role)) {
+          if (data && typeof data === 'object') {
+            data.session = {
+              User: mockUser.Email || mockUser.email || mockUser['User ID'] || 'viewer@ptt.com',
+              Role: mockUser.Role || mockUser.role || 'Viewer',
+              Department: mockUser.Department || mockUser.department || 'All',
+              Name: mockUser.Name || mockUser.name || 'พนักงาน'
+            };
+          }
+        }
+      } catch(e) {}
+    }
     dashboardSelectedMonth = data.selectedMonth || dashboardSelectedMonth;
     if (Array.isArray(data.selectedDepartments)) {
       dashboardSelectedDepartments.clear();
@@ -2754,7 +2769,7 @@ Chart.defaults.plugins.tooltip.bodyFont = { size: 12 };
       ? (data.users || []).filter((user) => String(user.Status || '').toLowerCase() === 'pending')
       : (data.users || []);
     const rows = visibleUsers.map((user) => {
-      const id = safe(user['User ID']);
+      const id = safe(user['User ID'] || user.EmployeeID || user.id || user.Email || user.Username || '');
       const status = String(user.Status || 'Pending');
       const emailAddress = String(user.Email || '').toLowerCase();
       const primary = emailAddress === 'sermpong.ch@gmail.com';
@@ -3971,6 +3986,10 @@ Chart.defaults.plugins.tooltip.bodyFont = { size: 12 };
 // ==========================================
 // 🐞 IMPERSONATION MODE (View As User Sandbox) - ROBUST V84
 // ==========================================
+
+// ==========================================
+// 🐞 IMPERSONATION MODE (View As User Sandbox) - ROBUST V85
+// ==========================================
 window.impersonateUser = function(userId) {
   if (!confirm('🐞 ยืนยันเข้าตรวจสอบระบบในมุมมองของ User ID: ' + userId + ' ใช่หรือไม่?')) return;
   
@@ -4009,10 +4028,10 @@ window.impersonateUser = function(userId) {
   if (window.currentData && typeof window.currentData === 'function') {
     const data = window.currentData();
     if (data && data.users) {
-      targetUser = data.users.find(u => String(u['User ID']) === String(userId) || String(u.Email) === String(userId) || String(u.EmployeeID) === String(userId));
+      targetUser = data.users.find(u => String(u['User ID']) === String(userId) || String(u.Email || '').toLowerCase() === String(userId).toLowerCase() || String(u.EmployeeID) === String(userId) || String(u.Username) === String(userId) || String(u.Name) === String(userId));
     }
     if (!targetUser && data && data.employees) {
-      targetUser = data.employees.find(u => String(u.id) === String(userId) || String(u.Email) === String(userId) || String(u.EmployeeID) === String(userId));
+      targetUser = data.employees.find(u => String(u.id) === String(userId) || String(u.Email || '').toLowerCase() === String(userId).toLowerCase() || String(u.EmployeeID) === String(userId) || String(u.name) === String(userId) || String(u.Name) === String(userId));
     }
   }
   
@@ -4113,11 +4132,20 @@ window.checkImpersonationStatus = function() {
       if (document.body) document.body.prepend(banner);
       else window.addEventListener('DOMContentLoaded', () => document.body.prepend(banner));
     }
+    
+    // Enforce hiding admin/manager containers right away when in impersonation mode with non-admin/non-manager role
+    const r = String(currentSession.Role || currentSession.role || '').trim().toLowerCase();
+    if (r !== 'admin' && r !== 'manager' && !r.includes('admin') && !r.includes('manager') && !r.includes('ผู้ดูแล') && !r.includes('หัวหน้า')) {
+      const adminContainer = document.getElementById('leave-admin-container');
+      if (adminContainer) adminContainer.style.display = 'none';
+      document.querySelectorAll('[data-user-approver]').forEach((el) => el.hidden = true);
+    }
   }
 };
 if (typeof window !== 'undefined') {
   setTimeout(() => window.checkImpersonationStatus(), 300);
 }
+
 
 
 </script>
