@@ -765,18 +765,20 @@ window.printLeaveA4 = function(index) {
   const dateEl = document.getElementById('printDate');
   const titleEl = document.getElementById('printReportTitle');
   const rowBody = document.getElementById('printSingleRowBody');
+  const printContainer = document.getElementById('globalPrintReport') || document.getElementById('leave-a4-print-area');
 
   if (empNameEl) empNameEl.innerText = sessionUser?.FullName || sessionUser?.Name || 'พนักงาน';
   if (dateEl) dateEl.innerText = today;
   if (titleEl) titleEl.innerText = "ใบขออนุมัติลางาน";
 
+  const cleanDate = typeof window.cleanLeaveDateStr === 'function' ? window.cleanLeaveDateStr(item.date) : item.date;
   const detailsOrReason = item.reason || item.details || item.type || '-';
   const daysText = item.days ? `${item.days} วัน` : '1 วัน';
 
   if (rowBody) {
     rowBody.innerHTML = `
       <tr>
-        <td style="padding: 12px; border: 1px solid #000; text-align: center; font-weight: 500;">${item.date}</td>
+        <td style="padding: 12px; border: 1px solid #000; text-align: center; font-weight: 500;">${cleanDate}</td>
         <td style="padding: 12px; border: 1px solid #000; text-align: center; font-weight: bold; color: #1d4ed8;">${item.type}</td>
         <td style="padding: 12px; border: 1px solid #000; text-align: center;">${daysText}</td>
         <td style="padding: 12px; border: 1px solid #000; text-align: left;">${detailsOrReason}</td>
@@ -797,18 +799,20 @@ window.printLeaveA4Admin = function(index) {
   const dateEl = document.getElementById('printDate');
   const titleEl = document.getElementById('printReportTitle');
   const rowBody = document.getElementById('printSingleRowBody');
+  const printContainer = document.getElementById('globalPrintReport') || document.getElementById('leave-a4-print-area');
 
   if (empNameEl) empNameEl.innerText = item.name || item.empName || 'พนักงาน';
   if (dateEl) dateEl.innerText = today;
   if (titleEl) titleEl.innerText = "ใบขออนุมัติลางาน (สำหรับผู้บริหาร)";
 
+  const cleanDate = typeof window.cleanLeaveDateStr === 'function' ? window.cleanLeaveDateStr(item.date) : item.date;
   const detailsOrReason = item.reason || item.details || item.type || '-';
   const daysText = item.days ? `${item.days} วัน` : '1 วัน';
 
   if (rowBody) {
     rowBody.innerHTML = `
       <tr>
-        <td style="padding: 12px; border: 1px solid #000; text-align: center; font-weight: 500;">${item.date}</td>
+        <td style="padding: 12px; border: 1px solid #000; text-align: center; font-weight: 500;">${cleanDate}</td>
         <td style="padding: 12px; border: 1px solid #000; text-align: center; font-weight: bold; color: #1d4ed8;">${item.type}</td>
         <td style="padding: 12px; border: 1px solid #000; text-align: center;">${daysText}</td>
         <td style="padding: 12px; border: 1px solid #000; text-align: left;">${detailsOrReason}</td>
@@ -3552,49 +3556,46 @@ Chart.defaults.plugins.tooltip.bodyFont = { size: 12 };
     </div>
   </div>
 
-  <!-- =========================================================
-       🖨️ A4 PRINT REPORT SECTION (เฉพาะเมื่อพิมพ์ A4)
+    <!-- =========================================================
+       🖨️ A4 PRINT REPORT SECTION (รูปแบบเดิมจากระบบลาเก่า)
        ========================================================= -->
-  <div id="leave-a4-print-area" class="print-only" style="display: none; padding: 20px; background: #fff; color: #000;">
-    <div style="text-align: center; margin-bottom: 24px;">
-      <h2 id="printReportTitle" style="font-size: 24px; font-weight: bold; margin: 0 0 6px 0; color: #000;">ใบขออนุมัติลางาน</h2>
-      <p style="font-size: 16px; margin: 0; color: #000;">งานรักษาความปลอดภัย ส่วนปฏิบัติการระบบท่อเขต 11</p>
-      <div style="margin-top: 18px; text-align: left; display: flex; justify-content: space-between; border-bottom: 2px solid #000; padding-bottom: 8px; font-size: 15px;">
-        <p style="margin: 0; font-weight: bold;">ชื่อพนักงาน: <span id="printEmpName" style="font-weight: normal;">-</span></p>
-        <p style="margin: 0; font-weight: bold;">วันที่พิมพ์: <span id="printDate" style="font-weight: normal;">-</span></p>
+  <div id="globalPrintReport" class="print-only hidden" style="display: none; padding: 20px; background: #fff; color: #000;">
+    <div class="text-center mb-6" style="text-align: center; margin-bottom: 24px;">
+      <h2 id="printReportTitle" class="text-2xl font-bold mb-1" style="font-size: 24px; font-weight: bold; margin: 0 0 6px 0; color: #000;">ใบขออนุมัติลางาน</h2>
+      <p class="text-lg" style="font-size: 16px; margin: 0; color: #000;">พนักงานรักษาความปลอดภัย ส่วนปฏิบัติการระบบท่อเขต 11</p>
+      <div class="mt-4 text-left flex justify-between border-b-2 border-black pb-2" style="margin-top: 18px; text-align: left; display: flex; justify-content: space-between; border-bottom: 2px solid #000; padding-bottom: 8px; font-size: 15px;">
+        <p class="font-bold" style="margin: 0; font-weight: bold;">ชื่อพนักงาน: <span id="printEmpName" class="font-normal" style="font-weight: normal;"></span></p>
+        <p class="font-bold" style="margin: 0; font-weight: bold;">วันที่พิมพ์: <span id="printDate" class="font-normal" style="font-weight: normal;"></span></p>
       </div>
     </div>
 
-    <div style="overflow: hidden; background: #fff; margin-bottom: 30px;">
-      <table style="width: 100%; font-size: 15px; text-align: left; border-collapse: collapse; border: 1px solid #000;">
+    <div class="overflow-hidden bg-white mb-6" style="overflow: hidden; background: #fff; margin-bottom: 24px;">
+      <table class="w-full text-sm text-left border-collapse" style="width: 100%; font-size: 15px; text-align: left; border-collapse: collapse; border: 1px solid #000;">
         <thead>
           <tr style="background-color: #f3f4f6 !important;">
-            <th style="padding: 12px; border: 1px solid #000; text-align: center; font-weight: bold;" width="28%">วันที่ลางาน</th>
-            <th style="padding: 12px; border: 1px solid #000; text-align: center; font-weight: bold;" width="20%">ประเภทการลา</th>
-            <th style="padding: 12px; border: 1px solid #000; text-align: center; font-weight: bold;" width="15%">จำนวนวัน</th>
-            <th style="padding: 12px; border: 1px solid #000; text-align: left; font-weight: bold;" width="37%">ผู้ปฏิบัติงานแทน / เหตุผลการลา</th>
+            <th class="px-4 py-3 border text-center" width="30%" style="padding: 12px; border: 1px solid #000; text-align: center; font-weight: bold;">วันที่ลางาน</th>
+            <th class="px-4 py-3 border text-center" width="20%" style="padding: 12px; border: 1px solid #000; text-align: center; font-weight: bold;">ประเภทการลา</th>
+            <th class="px-4 py-3 border text-center" width="15%" style="padding: 12px; border: 1px solid #000; text-align: center; font-weight: bold;">จำนวนวัน</th>
+            <th class="px-4 py-3 border text-center" width="35%" style="padding: 12px; border: 1px solid #000; text-align: left; font-weight: bold;">ผู้ปฏิบัติงานแทน / รายละเอียด</th>
           </tr>
         </thead>
-        <tbody id="printSingleRowBody">
-          <!-- จะถูกเติมอัตโนมัติเมื่อกดพิมพ์ -->
-        </tbody>
+        <tbody id="printSingleRowBody"></tbody>
       </table>
     </div>
 
-    <div class="signature-box" style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px; text-align: center; margin-top: 60px; font-size: 15px;">
-      <div>
+    <div class="signature-box print-only hidden grid grid-cols-2 gap-10 text-center mt-12" style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px; text-align: center; margin-top: 60px; font-size: 15px;">
+      <div class="space-y-5">
         <p style="margin: 0 0 24px 0;">ลงชื่อ...........................................................</p>
         <p style="margin: 0 0 8px 0;">(...........................................................)</p>
         <p style="margin: 0;">พนักงานผู้จัดพิมพ์รายงาน/หัวหน้าพนักงานรักษาความปลอดภัย</p>
       </div>
-      <div>
+      <div class="space-y-5">
         <p style="margin: 0 0 24px 0;">ทราบ / ลงชื่อ...........................................................</p>
         <p style="margin: 0 0 8px 0;">(...........................................................)</p>
         <p style="margin: 0;">ผู้จัดการเขต (ผู้อนุมัติ)</p>
       </div>
     </div>
   </div>
-</div>
 
 <style>
 @keyframes spin {
@@ -3619,7 +3620,8 @@ Chart.defaults.plugins.tooltip.bodyFont = { size: 12 };
   @page { size: A4 portrait; margin: 1.5cm 2cm; }
   body, html { background: #ffffff !important; padding: 0 !important; margin: 0 !important; color: #000000 !important; font-size: 14pt !important; }
   .no-print, .nav-area, .header-area, .sidebar, #header-container, #nav-container, .metrics-grid, form, button { display: none !important; }
-  .print-only { display: block !important; }
+  .print-only, #globalPrintReport, #leave-a4-print-area { display: block !important; width: 100% !important; opacity: 1 !important; visibility: visible !important; }
+  .print-only.hidden, #globalPrintReport.hidden { display: block !important; }
   #view-leave { padding: 0 !important; margin: 0 !important; border: none !important; box-shadow: none !important; }
   #leave-a4-print-area { display: block !important; width: 100% !important; }
   table { width: 100% !important; border-collapse: collapse !important; margin-bottom: 20px !important; }
