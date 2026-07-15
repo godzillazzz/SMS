@@ -505,24 +505,33 @@ window.checkImpersonationStatus = function() {
       else window.addEventListener('DOMContentLoaded', () => document.body.prepend(banner));
     }
     
-    // Enforce strict Viewer UI restrictions
     const r = String(currentSession.Role || currentSession.role || '').trim().toLowerCase();
-    const isAdmOrMgr = (r === 'admin' || r === 'manager' || r.includes('admin') || r.includes('manager') || r.includes('ผู้ดูแล') || r.includes('หัวหน้า'));
-    if (!isAdmOrMgr) {
-      const adminContainer = document.getElementById('leave-admin-container');
-      if (adminContainer) adminContainer.style.display = 'none';
-      document.querySelectorAll('.nav-item').forEach((item) => {
-        const txt = item.textContent.trim().toLowerCase();
-        if (txt.includes('users & roles') || txt.includes('settings') || txt.includes('master data') || txt.includes('shift setup') || txt.includes('rule checking') || item.hasAttribute('data-user-approver')) {
-          item.hidden = true;
-          item.style.display = 'none';
-        }
-      });
-      const activeNav = document.querySelector('.nav-item.active');
-      if (activeNav && (activeNav.hidden || activeNav.style.display === 'none')) {
-        const dashNav = Array.from(document.querySelectorAll('.nav-item')).find(n => n.textContent.trim().toLowerCase().includes('dashboard'));
-        if (dashNav) dashNav.click();
+    const isAdminRole = r === 'admin' || r.includes('admin') || r.includes('ผู้ดูแล');
+    const isManagerRole = r === 'manager' || r.includes('manager') || r.includes('หัวหน้า');
+    
+    const adminContainer = document.getElementById('leave-admin-container');
+    if (adminContainer) {
+      adminContainer.style.display = (isAdminRole || isManagerRole) ? 'block' : 'none';
+    }
+
+    document.querySelectorAll('.nav-item').forEach((item) => {
+      const txt = item.textContent.trim().toLowerCase();
+      if (txt.includes('master data') || txt.includes('shift setup') || txt.includes('settings')) {
+        item.hidden = !isAdminRole;
+        item.style.display = isAdminRole ? '' : 'none';
+      } else if (txt.includes('rule checking') || txt.includes('users & roles') || item.hasAttribute('data-user-approver')) {
+        item.hidden = (!isAdminRole && !isManagerRole);
+        item.style.display = (isAdminRole || isManagerRole) ? '' : 'none';
+      } else {
+        item.hidden = false;
+        item.style.display = '';
       }
+    });
+
+    const activeNav = document.querySelector('.nav-item.active');
+    if (activeNav && (activeNav.hidden || activeNav.style.display === 'none')) {
+      const dashNav = Array.from(document.querySelectorAll('.nav-item')).find(n => n.textContent.trim().toLowerCase().includes('dashboard'));
+      if (dashNav) dashNav.click();
     }
   }
 };
