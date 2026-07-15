@@ -531,7 +531,11 @@ window.checkImpersonationStatus = function() {
     const activeNav = document.querySelector('.nav-item.active');
     if (activeNav && (activeNav.hidden || activeNav.style.display === 'none')) {
       const dashNav = Array.from(document.querySelectorAll('.nav-item')).find(n => n.textContent.trim().toLowerCase().includes('dashboard'));
-      if (dashNav) dashNav.click();
+      if (dashNav && typeof renderView === 'function') {
+        document.querySelectorAll('.nav-item').forEach((nav) => nav.classList.remove('active'));
+        dashNav.classList.add('active');
+        renderView('dashboard');
+      }
     }
   }
 };
