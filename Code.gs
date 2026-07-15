@@ -3128,12 +3128,23 @@ function getEmployeesPage(request, token) {
 }
 
 function getOptimizedScheduleData(request, token) {
-  requireActiveSession_(token);
+  const sessionUser = requireActiveSession_(token);
+  const userRole = String(sessionUser.role || sessionUser.Role || '').trim().toLowerCase();
   const input = request || {};
   const spreadsheet = getOrCreateSpreadsheet_();
   ensureRequiredSheets_(spreadsheet);
   enforceMaxWeeklyHours72_(spreadsheet.getSheetByName('Rules'));
   const timeZone = spreadsheet.getSpreadsheetTimeZone();
+
+  const isAdmin = userRole === 'admin' || isAdminUser_(sessionUser);
+  const isManager = userRole === 'manager';
+  
+  const users = (isAdmin || isManager) ? safeUsers_(spreadsheet).filter(function(user) {
+    return isAdmin || String(user.Status || '').trim().toLowerCase() === 'pending';
+  }) : [];
+  
+  const settings = isAdmin ? normalizeRows_(readObjects_(spreadsheet.getSheetByName('Settings')), timeZone) : [];
+  const dashboard = normalizeRows_(readObjects_(spreadsheet.getSheetByName('Dashboard')), timeZone);
 
   const allEmployees = readObjects_(spreadsheet.getSheetByName('Employees'));
   const allLicenses = readEmployeeLicenses_(spreadsheet, timeZone);
@@ -3249,9 +3260,9 @@ function getOptimizedScheduleData(request, token) {
     scheduleRows: scopedSchedule.display,
     rules: rules.map(function(rule) { return rule.row; }),
     ruleResults: summary.ruleResults,
-    dashboard: [],
-    users: [],
-    settings: [],
+    dashboard: dashboard,
+    users: users,
+    settings: settings,
     departments: summary.departments,
     analytics: summary.analytics,
     metrics: summary.metrics,
