@@ -486,7 +486,7 @@ function executeApiCall(action, args, onSuccess, onFailure) {
   if (token) {
     payloadObj.token = token;
     if (!args || args.length === 0) args = [token];
-    else if (typeof args[0] !== 'string') args = [token, ...args];
+    else if (args.length === 1 && typeof args[0] === 'object') args = [args[0], token];
   }
   fetch(GAS_WEB_APP_URL, {
     method: 'POST',
