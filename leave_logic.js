@@ -184,9 +184,6 @@ window.checkLeaveQuotaOnForm = function() {
   }
 };
 
-/* ==========================================================
-   🖨️ ระบบพิมพ์ใบลา A4 ตามรูปแบบเดิม (Print A4 Layout)
-   ========================================================== */
 window.printLeaveA4 = function(index) {
   const sessionUser = getActiveSessionUser();
   const item = window.localLeaveHistoryList[index];
@@ -230,7 +227,7 @@ window.printLeaveA4Admin = function(index) {
   const titleEl = document.getElementById('printReportTitle');
   const rowBody = document.getElementById('printSingleRowBody');
 
-  if (empNameEl) empNameEl.innerText = item.name || 'พนักงาน';
+  if (empNameEl) empNameEl.innerText = item.name || item.empName || 'พนักงาน';
   if (dateEl) dateEl.innerText = today;
   if (titleEl) titleEl.innerText = "ใบขออนุมัติลางาน (สำหรับผู้บริหาร)";
 
@@ -253,7 +250,7 @@ window.printLeaveA4Admin = function(index) {
 
 window.submitLeave = function(event) {
   const sessionUser = getActiveSessionUser();
-  event.preventDefault();
+  if (event && event.preventDefault) event.preventDefault();
   const btn = document.getElementById('leave-submit-btn');
   const text = document.getElementById('leave-submit-text');
   if (text) text.innerText = '⏳ กำลังส่งข้อมูล...';
@@ -263,10 +260,10 @@ window.submitLeave = function(event) {
   const start = document.getElementById('leave-start').value;
   const end = document.getElementById('leave-end').value;
   const sub = document.getElementById('leave-substitute')?.value || '';
-  const reasonText = document.getElementById('leave-reason').value;
+  const reasonText = document.getElementById('leave-reason')?.value?.trim() || '';
   const fileInput = document.getElementById('leave-file');
 
-  const fullReason = sub ? `[แทน: ${sub}] ${reasonText}` : reasonText;
+  const fullReason = sub ? (reasonText ? `[แทน: ${sub}] ${reasonText}` : `[แทน: ${sub}]`) : (reasonText || '-');
 
   const payload = {
     name: sessionUser?.FullName || sessionUser?.Name || 'พนักงาน',
@@ -280,7 +277,8 @@ window.submitLeave = function(event) {
   const finalize = () => {
     apiCall('saveLeaveRequest', [], payload).then(res => {
       alert(res.message || 'บันทึกสำเร็จ');
-      document.getElementById('leave-form').reset();
+      const form = document.getElementById('leave-form');
+      if (form) form.reset();
       loadLeaveView();
     }).catch(err => {
       alert('เกิดข้อผิดพลาด: ' + err.message);
@@ -290,7 +288,7 @@ window.submitLeave = function(event) {
     });
   };
 
-  if (fileInput.files.length > 0) {
+  if (fileInput && fileInput.files && fileInput.files.length > 0) {
     const file = fileInput.files[0];
     const reader = new FileReader();
     reader.onload = function(e) {
