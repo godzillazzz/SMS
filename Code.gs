@@ -143,6 +143,17 @@ function doPost(e) {
         data = getAllLeaveHistory_(token);
         break;
       }
+      case 'getLineSettings': {
+        const token = args[0] || (request.payload ? request.payload.token : '') || '';
+        data = getLineSettings(token);
+        break;
+      }
+      case 'saveLineSettings': {
+        const token = args[0] || (request.payload ? request.payload.token : '') || '';
+        const settings = args[1] || request.payload || {};
+        data = saveLineSettings(token, settings);
+        break;
+      }
       default:
         throw new Error('Unknown action: ' + action);
     }
@@ -4231,6 +4242,59 @@ const LEAVE_SHEET_NAME = "ลางาน";
 const QUOTA_SHEET_NAME = "Quota";
 const LEAVE_FOLDER_ID = "1cBf4eHABC-A3zEPMMohd_0RMa7UdSaJ7"; 
 
+function formatTemplate_(template, placeholders) {
+  let text = template;
+  for (const [key, val] of Object.entries(placeholders)) {
+    text = text.replace(new RegExp('{' + key + '}', 'g'), val || '');
+  }
+  return text;
+}
+
+function getLineSettings(token) {
+  const user = validateSession(token);
+  if (!isAdminOrManager_(user)) throw new Error('Unauthorized');
+  
+  const props = PropertiesService.getScriptProperties();
+  const rawToken = props.getProperty('LINE_ACCESS_TOKEN') || '';
+  
+  let maskedToken = '';
+  if (rawToken) {
+    maskedToken = rawToken.length > 10 
+      ? rawToken.slice(0, 5) + '••••••••' + rawToken.slice(-5)
+      : '••••••••';
+  }
+  
+  const defaultTemplateNew = `🔔 [คำขอลางานใหม่] รอตรวจรับเอกสาร\n--------------------------------\n👤 พนักงาน: {Name}\n📍 แผนก/พื้นที่: {Department}\n📋 ประเภท: {Type} ({Days} วัน)\n📅 วันที่: {StartDate} ถึง {EndDate}\n📝 เหตุผล: {Reason}\n📎 ไฟล์แนบ: {FileUrl}\n--------------------------------\n⚙️ จัดการใบลาคลิกที่ระบบ Security Management System`;
+  const defaultTemplateUpdate = `📢 [อัปเดตสถานะใบลาจากระบบ]\n--------------------------------\n👤 พนักงาน: {Name}\n📋 ประเภท: {Type} ({Days} วัน)\n🔄 ผลการตรวจรับ: {Status}`;
+
+  return {
+    lineToken: maskedToken,
+    hasToken: !!rawToken,
+    groupId: props.getProperty('LINE_SUPERVISOR_GROUP_ID') || '',
+    templateNewLeave: props.getProperty('LINE_TEMPLATE_NEW_LEAVE') || defaultTemplateNew,
+    templateUpdateLeave: props.getProperty('LINE_TEMPLATE_UPDATE_LEAVE') || defaultTemplateUpdate
+  };
+}
+
+function saveLineSettings(token, settings) {
+  const user = validateSession(token);
+  if (!isAdminOrManager_(user)) throw new Error('Unauthorized');
+  
+  const props = PropertiesService.getScriptProperties();
+  const updates = {};
+  
+  if (settings.lineToken && !settings.lineToken.includes('••••')) {
+    updates['LINE_ACCESS_TOKEN'] = settings.lineToken.trim();
+  }
+  
+  updates['LINE_SUPERVISOR_GROUP_ID'] = (settings.groupId || '').trim();
+  updates['LINE_TEMPLATE_NEW_LEAVE'] = settings.templateNewLeave || '';
+  updates['LINE_TEMPLATE_UPDATE_LEAVE'] = settings.templateUpdateLeave || '';
+  
+  props.setProperties(updates);
+  return { success: true };
+}
+
 function getLineCredentials_() {
   const props = PropertiesService.getScriptProperties();
   return {
@@ -4458,16 +4522,34 @@ function submitLeaveRequest(token, leaveData) {
       leaveData.startDate, leaveData.endDate, days, leaveData.reason, fileUrl, "รออนุมัติ"
     ]);
 
-    const msg = `🔔 [คำขอลางานใหม่] รอตรวจรับเอกสาร\n` +
-              `--------------------------------\n` +
-              `👤 พนักงาน: ${user.Name}\n` +
-              `📍 แผนก/พื้นที่: ${user.Department}\n` +
-              `📋 ประเภท: ${leaveData.leaveType} (${days} วัน)\n` +
-              `📅 วันที่: ${leaveData.startDate} ถึง ${leaveData.endDate}\n` +
-              `📝 เหตุผล: ${leaveData.reason}\n` +
-              `📎 ไฟล์แนบ: ${fileUrl}\n` +
-              `--------------------------------\n` +
-              `⚙️ จัดการใบลาคลิกที่ระบบ Security Management System`;
+    const props = PropertiesService.getScriptProperties();
+    const rawTemplate = props.getProperty('LINE_TEMPLATE_NEW_LEAVE');
+    let msg = "";
+    const placeholders = {
+      Name: user.Name,
+      Department: user.Department,
+      Type: leaveData.leaveType,
+      Days: days,
+      StartDate: leaveData.startDate,
+      EndDate: leaveData.endDate,
+      Reason: leaveData.reason,
+      FileUrl: fileUrl
+    };
+    
+    if (rawTemplate) {
+      msg = formatTemplate_(rawTemplate, placeholders);
+    } else {
+      msg = `🔔 [คำขอลางานใหม่] รอตรวจรับเอกสาร\n` +
+            `--------------------------------\n` +
+            `👤 พนักงาน: ${user.Name}\n` +
+            `📍 แผนก/พื้นที่: ${user.Department}\n` +
+            `📋 ประเภท: ${leaveData.leaveType} (${days} วัน)\n` +
+            `📅 วันที่: ${leaveData.startDate} ถึง ${leaveData.endDate}\n` +
+            `📝 เหตุผล: ${leaveData.reason}\n` +
+            `📎 ไฟล์แนบ: ${fileUrl}\n` +
+            `--------------------------------\n` +
+            `⚙️ จัดการใบลาคลิกที่ระบบ Security Management System`;
+    }
               
     sendLineToGroup_(msg);
     return { success: true, message: "ส่งใบลาสำเร็จ" };
@@ -4728,11 +4810,25 @@ function updateLeaveStatus(token, leaveId, status) {
     sheets.leaveSheet.getRange(rowNumber, 10).setValue(status);
 
     const statusIcon = (status === "อนุมัติ") ? "✅ อนุมัติแล้ว" : "❌ ไม่อนุมัติ";
-    const updateMsg = "📢 [อัปเดตสถานะใบลาจากระบบ]\n" +
-                      "--------------------------------\n" +
-                      "👤 พนักงาน: " + empName + "\n" +
-                      "📋 ประเภท: " + leaveType + " (" + leaveDays + " วัน)\n" +
-                      "🔄 ผลการตรวจรับ: " + statusIcon;
+    const props = PropertiesService.getScriptProperties();
+    const rawTemplate = props.getProperty('LINE_TEMPLATE_UPDATE_LEAVE');
+    let updateMsg = "";
+    const placeholders = {
+      Name: empName,
+      Type: leaveType,
+      Days: leaveDays,
+      Status: statusIcon
+    };
+    
+    if (rawTemplate) {
+      updateMsg = formatTemplate_(rawTemplate, placeholders);
+    } else {
+      updateMsg = "📢 [อัปเดตสถานะใบลาจากระบบ]\n" +
+                  "--------------------------------\n" +
+                  "👤 พนักงาน: " + empName + "\n" +
+                  "📋 ประเภท: " + leaveType + " (" + leaveDays + " วัน)\n" +
+                  "🔄 ผลการตรวจรับ: " + statusIcon;
+    }
     try { sendLineToGroup_(updateMsg); } catch(e) {}
 
     return { success: true };

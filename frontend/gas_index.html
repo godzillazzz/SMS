@@ -3584,6 +3584,25 @@ Chart.defaults.plugins.tooltip.bodyFont = { size: 12 };
   };
   const renderSettings = () => {
     if (!isAdmin()) return panel('Settings', 'สงวนสิทธิ์เฉพาะ Admin เท่านั้น', '<p style="padding:32px;text-align:center;color:#64748B;font-size:15px;">🔒 บัญชีของคุณ (' + (currentSessionUser().role || currentSessionUser().Role || 'User') + ') ไม่มีสิทธิ์เข้าถึงหน้าตั้งค่าระบบ Settings (สงวนสิทธิ์เฉพาะ Admin)</p>');
+    
+    if (!window.lineSettingsData && !window.loadingLineSettings) {
+      window.loadingLineSettings = true;
+      google.script.run
+        .withSuccessHandler((res) => {
+          window.lineSettingsData = res;
+          window.loadingLineSettings = false;
+          const dynamicView = document.getElementById('dynamic-view');
+          if (dynamicView && dynamicView.style.display !== 'none') {
+            dynamicView.innerHTML = renderSettings();
+          }
+        })
+        .withFailureHandler((err) => {
+          window.loadingLineSettings = false;
+          console.error("Failed to load LINE settings:", err);
+        })
+        .getLineSettings(sessionToken());
+    }
+
     const rows = (currentData().settings || []).map((setting) => `
       <tr>
         <td style="text-align:left;font-weight:600;">${safe(setting.Key)}</td>
@@ -3592,6 +3611,80 @@ Chart.defaults.plugins.tooltip.bodyFont = { size: 12 };
       </tr>
     `).join('');
 
+    const lineData = window.lineSettingsData || {
+      lineToken: '',
+      hasToken: false,
+      groupId: '',
+      templateNewLeave: '',
+      templateUpdateLeave: ''
+    };
+
+    const tokenPlaceholder = lineData.hasToken ? '•••••••••••••••• (มี Access Token เดิมตั้งค่าไว้แล้ว)' : 'กรอก LINE Access Token ใหม่ที่นี่...';
+
+    const lineForm = `
+      <div style="background: var(--surface); border: 1.5px solid var(--border); border-radius: 16px; padding: 24px; margin-top: 24px; color: var(--text);">
+        <h3 style="font-size: 18px; font-weight: 700; color: var(--text); margin-top: 0; margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
+          💬 LINE Notification Settings (ตั้งค่าแจ้งเตือน LINE)
+        </h3>
+        <p style="color: var(--text-muted); font-size: 13.5px; margin-bottom: 20px; margin-top: 0;">
+          ตั้งค่าการแจ้งเตือนการยื่นใบลาและการอัปเดตสถานะการลาไปยังแอปพลิเคชัน LINE (รองรับทั้ง LINE Notify และ LINE Messaging API)
+        </p>
+        
+        <div style="display: flex; flex-direction: column; gap: 16px;">
+          <div>
+            <label style="display: block; font-weight: 600; font-size: 14px; color: var(--text); margin-bottom: 6px;">LINE Access Token / Channel Access Token</label>
+            <input type="password" id="line-token-input" placeholder="${tokenPlaceholder}" 
+              style="width: 100%; max-width: 600px; padding: 10px 14px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 14px; background: var(--surface-2); color: var(--text);" />
+          </div>
+          
+          <div>
+            <label style="display: block; font-weight: 600; font-size: 14px; color: var(--text); margin-bottom: 6px;">LINE Group ID / Target ID (สำหรับ Messaging API หรือข้ามไปหากใช้ LINE Notify)</label>
+            <input type="text" id="line-group-input" value="${safe(lineData.groupId)}" placeholder="กรอก LINE Group ID..." 
+              style="width: 100%; max-width: 600px; padding: 10px 14px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 14px; background: var(--surface-2); color: var(--text);" />
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr; gap: 16px; margin-top: 8px;">
+            <div>
+              <label style="display: block; font-weight: 600; font-size: 14px; color: var(--text); margin-bottom: 6px;">
+                🔔 เทมเพลตคำขอลางานใหม่ (New Leave Request Template)
+              </label>
+              <textarea id="line-template-new" rows="5" 
+                style="width: 100%; padding: 12px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 13px; font-family: monospace; resize: vertical; background: var(--surface-2); color: var(--text);">${safe(lineData.templateNewLeave)}</textarea>
+            </div>
+            
+            <div>
+              <label style="display: block; font-weight: 600; font-size: 14px; color: var(--text); margin-bottom: 6px;">
+                📢 เทมเพลตอัปเดตสถานะใบลา (Leave Status Update Template)
+              </label>
+              <textarea id="line-template-update" rows="4" 
+                style="width: 100%; padding: 12px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 13px; font-family: monospace; resize: vertical; background: var(--surface-2); color: var(--text);">${safe(lineData.templateUpdateLeave)}</textarea>
+            </div>
+          </div>
+          
+          <div style="background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 12px; font-size: 12.5px; color: var(--text-muted);">
+            <strong>💡 ตัวแปรที่สามารถใช้แทนที่ได้ในข้อความ (Placeholders):</strong><br/>
+            - <code>{Name}</code> : ชื่อ-นามสกุลพนักงาน<br/>
+            - <code>{Department}</code> : แผนก/พื้นที่ปฏิบัติงาน<br/>
+            - <code>{Type}</code> : ประเภทการลา (เช่น ลาป่วย, ลากิจ)<br/>
+            - <code>{Days}</code> : จำนวนวันลา (ตัวเลข)<br/>
+            - <code>{StartDate}</code> / <code>{EndDate}</code> : วันที่เริ่มต้น / วันสิ้นสุดการลา<br/>
+            - <code>{Reason}</code> : เหตุผลการลา<br/>
+            - <code>{FileUrl}</code> : ลิงก์ไฟล์แนบใบลา (ถ้ามี)<br/>
+            - <code>{Status}</code> : สถานะการอนุมัติ (เช่น ✅ อนุมัติแล้ว, ❌ ไม่อนุมัติ)
+          </div>
+
+          <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 8px;">
+            <button class="btn btn-primary" id="btn-save-line-settings" onclick="window.saveLineSettingsForm()">
+              💾 บันทึกการตั้งค่า LINE
+            </button>
+            <button class="btn btn-ghost" id="btn-test-line" onclick="window.testLineNotification()" ${lineData.hasToken ? '' : 'disabled'}>
+              🔔 ทดสอบส่งข้อความแจ้งเตือนเข้ากลุ่ม LINE
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+
     return panel('Settings', 'อ่านจากชีต Settings โดยตรง', `
       <div class="schedule-wrap">
         <table class="schedule-table">
@@ -3599,7 +3692,7 @@ Chart.defaults.plugins.tooltip.bodyFont = { size: 12 };
           <tbody>${rows || '<tr><td colspan="3">ยังไม่มีข้อมูล Settings</td></tr>'}</tbody>
         </table>
       </div>
-    `);
+    `) + (window.loadingLineSettings ? `<div style="text-align:center;padding:24px;color:var(--text-muted);font-size:14px;">⏳ กำลังโหลดการตั้งค่า LINE...</div>` : lineForm);
   };
 
   const renderView = (view) => {
@@ -4390,6 +4483,58 @@ Chart.defaults.plugins.tooltip.bodyFont = { size: 12 };
     event.stopImmediatePropagation();
     suppressClickIn = null;
   }, true);
+
+
+window.testLineNotification = function() {
+  const token = sessionToken();
+  const btn = document.getElementById('btn-test-line');
+  if (btn) btn.innerText = '⏳ กำลังยิงข้อความทดสอบ...';
+  google.script.run
+    .withSuccessHandler((result) => {
+      if (btn) btn.innerText = '🔔 ทดสอบส่งข้อความแจ้งเตือนเข้ากลุ่ม LINE';
+      if (result && result.success) {
+        alert('✅ ยิงข้อความทดสอบเข้ากลุ่ม LINE สำเร็จเรียบร้อยแล้ว! กรุณาตรวจสอบในแอป LINE ของคุณ');
+      } else {
+        let details = JSON.stringify(result.results || result, null, 2);
+        alert('⚠️ ยิงข้อความเข้า LINE ไม่สำเร็จ! รายละเอียดจากเซิร์ฟเวอร์ LINE:\n\n' + details + '\n\n💡 คำแนะนำ: ตรวจสอบ LINE Access Token และ Group ID ในตั้งค่าระบบ');
+      }
+    })
+    .withFailureHandler((err) => {
+      if (btn) btn.innerText = '🔔 ทดสอบส่งข้อความแจ้งเตือนเข้ากลุ่ม LINE';
+      alert('เกิดข้อผิดพลาดในการทดสอบ LINE: ' + err.message);
+    })
+    .testLineMessage(token);
+};
+
+window.saveLineSettingsForm = function() {
+  const token = sessionToken();
+  const lineToken = document.getElementById('line-token-input').value;
+  const groupId = document.getElementById('line-group-input').value;
+  const templateNewLeave = document.getElementById('line-template-new').value;
+  const templateUpdateLeave = document.getElementById('line-template-update').value;
+  
+  const btn = document.getElementById('btn-save-line-settings');
+  if (btn) btn.innerText = '💾 กำลังบันทึกการตั้งค่า...';
+  
+  google.script.run
+    .withSuccessHandler((res) => {
+      if (btn) btn.innerText = '💾 บันทึกการตั้งค่า LINE';
+      alert('✅ บันทึกการตั้งค่าการแจ้งเตือน LINE เรียบร้อยแล้ว!');
+      window.lineSettingsData = null;
+      renderView('settings');
+    })
+    .withFailureHandler((err) => {
+      if (btn) btn.innerText = '💾 บันทึกการตั้งค่า LINE';
+      alert('⚠️ ไม่สามารถบันทึกการตั้งค่าได้: ' + err.message);
+    })
+    .saveLineSettings(token, {
+      lineToken: lineToken,
+      groupId: groupId,
+      templateNewLeave: templateNewLeave,
+      templateUpdateLeave: templateUpdateLeave
+    });
+};
+
 })();
 </script>
 <script>
