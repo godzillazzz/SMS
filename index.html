@@ -2730,7 +2730,15 @@ Chart.defaults.plugins.tooltip.bodyFont = { size: 12 };
     violations: []
   };
 
-  const currentSessionUser = () => window.shiftFlowCurrentUser || {};
+  const currentSessionUser = () => {
+  if (localStorage.getItem('shiftflow_is_impersonating') === 'true' || sessionStorage.getItem('shiftflow_is_impersonating') === 'true') {
+    try {
+      const mockUser = JSON.parse(sessionStorage.getItem('shiftflow.currentUser') || localStorage.getItem('shiftflow.currentUser') || sessionStorage.getItem('shiftflow_session_v1') || '{}');
+      if (mockUser && (mockUser.role || mockUser.Role || mockUser.isImpersonated)) return mockUser;
+    } catch(e) {}
+  }
+  return window.shiftFlowCurrentUser || window.sessionUser || {};
+};
   const isAdmin = () => String(currentSessionUser().role || '').toLowerCase() === 'admin';
   const isManager = () => String(currentSessionUser().role || '').toLowerCase() === 'manager';
   const canManageSchedules = () => isAdmin() || isManager();
@@ -2846,6 +2854,7 @@ Chart.defaults.plugins.tooltip.bodyFont = { size: 12 };
   };
 
   const renderMaster = () => {
+    if (!isAdmin() && !isManager()) return panel('Master Data', 'เฉพาะ Admin หรือ Manager เท่านั้น', '<p style="padding:32px;text-align:center;color:#64748B;font-size:15px;">🔒 บัญชีของคุณ (Viewer) ไม่มีสิทธิ์จัดการหรือเข้าดูข้อมูล Master Data</p>');
     const data = currentData();
     const admin = isAdmin();
     const employeeCreator = canAddEmployees();
@@ -2967,6 +2976,7 @@ Chart.defaults.plugins.tooltip.bodyFont = { size: 12 };
 
 
   const renderShiftSetup = () => {
+    if (!isAdmin() && !isManager()) return panel('Shift Setup', 'เฉพาะ Admin หรือ Manager เท่านั้น', '<p style="padding:32px;text-align:center;color:#64748B;font-size:15px;">🔒 บัญชีของคุณ (Viewer) ไม่มีสิทธิ์จัดการหรือเข้าดูตั้งค่ารหัสกะทำงาน</p>');
     const admin = isAdmin();
     const protectedCodes = new Set(['D', 'N', 'OFF', 'AL']);
     const rows = currentData().shiftTypes.map((shift) => {
@@ -3183,6 +3193,7 @@ Chart.defaults.plugins.tooltip.bodyFont = { size: 12 };
   };
 
   const renderRules = () => {
+    if (!isAdmin() && !isManager()) return panel('Rule Checking', 'เฉพาะ Admin หรือ Manager เท่านั้น', '<p style="padding:32px;text-align:center;color:#64748B;font-size:15px;">🔒 บัญชีของคุณ (Viewer) ไม่มีสิทธิ์ตรวจสอบหรือแก้ไขกฎระบบอัตโนมัติ</p>');
     const data = currentData();
     const resultById = (data.ruleResults || []).reduce((map, result) => {
       map[result.id] = result;
@@ -3665,6 +3676,7 @@ Chart.defaults.plugins.tooltip.bodyFont = { size: 12 };
 `;
   };
   const renderSettings = () => {
+    if (!isAdmin() && !isManager()) return panel('Settings', 'เฉพาะ Admin หรือ Manager เท่านั้น', '<p style="padding:32px;text-align:center;color:#64748B;font-size:15px;">🔒 บัญชีของคุณ (Viewer) ไม่มีสิทธิ์เข้าถึงหรือแก้ไขการตั้งค่าระบบ</p>');
     const rows = (currentData().settings || []).map((setting) => `
       <tr>
         <td style="text-align:left;font-weight:600;">${safe(setting.Key)}</td>
@@ -4649,12 +4661,25 @@ window.checkImpersonationStatus = function() {
       else window.addEventListener('DOMContentLoaded', () => document.body.prepend(banner));
     }
     
-    // Enforce hiding admin/manager containers right away when in impersonation mode with non-admin/non-manager role
+    // Enforce strict Viewer UI restrictions
     const r = String(currentSession.Role || currentSession.role || '').trim().toLowerCase();
-    if (r !== 'admin' && r !== 'manager' && !r.includes('admin') && !r.includes('manager') && !r.includes('ผู้ดูแล') && !r.includes('หัวหน้า')) {
+    const isAdmOrMgr = (r === 'admin' || r === 'manager' || r.includes('admin') || r.includes('manager') || r.includes('ผู้ดูแล') || r.includes('หัวหน้า'));
+    if (!isAdmOrMgr) {
       const adminContainer = document.getElementById('leave-admin-container');
       if (adminContainer) adminContainer.style.display = 'none';
-      document.querySelectorAll('[data-user-approver]').forEach((el) => el.hidden = true);
+      document.querySelectorAll('.nav-item').forEach((item) => {
+        const txt = item.textContent.trim().toLowerCase();
+        if (txt.includes('users & roles') || txt.includes('settings') || txt.includes('master data') || txt.includes('shift setup') || txt.includes('rule checking') || item.hasAttribute('data-user-approver')) {
+          item.hidden = true;
+          item.style.display = 'none';
+        }
+      });
+      // If currently active tab is one of the restricted ones, switch to dashboard
+      const activeNav = document.querySelector('.nav-item.active');
+      if (activeNav && (activeNav.hidden || activeNav.style.display === 'none')) {
+        const dashNav = Array.from(document.querySelectorAll('.nav-item')).find(n => n.textContent.trim().toLowerCase().includes('dashboard'));
+        if (dashNav) dashNav.click();
+      }
     }
   }
 };
