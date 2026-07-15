@@ -1,4 +1,15 @@
 function getActiveSessionUser() {
+  const isImp = localStorage.getItem('shiftflow_is_impersonating') === 'true' || sessionStorage.getItem('shiftflow_is_impersonating') === 'true';
+  if (isImp) {
+    try {
+      const mockUser = JSON.parse(sessionStorage.getItem('shiftflow.currentUser') || localStorage.getItem('shiftflow.currentUser') || sessionStorage.getItem('shiftflow_session_v1') || localStorage.getItem('shiftflow_session_v1') || 'null');
+      if (mockUser && (mockUser.isImpersonated || mockUser.Role || mockUser.role)) {
+        window.sessionUser = mockUser;
+        window.shiftFlowCurrentUser = mockUser;
+        return mockUser;
+      }
+    } catch(e) {}
+  }
   const u = window.sessionUser || window.shiftFlowCurrentUser || (typeof currentSessionUser === 'function' ? currentSessionUser() : null);
   if (u) window.sessionUser = u;
   return u;
@@ -36,7 +47,9 @@ window.loadLeaveView = function() {
   if (!sessionUser) return;
   const adminContainer = document.getElementById('leave-admin-container');
   if (adminContainer) {
-    adminContainer.style.display = (sessionUser.Role === 'admin' || sessionUser.Role === 'manager') ? 'block' : 'none';
+    const r = String(sessionUser.Role || sessionUser.role || '').trim().toLowerCase();
+    const isAdmOrMgr = (r === 'admin' || r === 'manager' || r.includes('admin') || r.includes('manager') || r.includes('ผู้ดูแล') || r.includes('หัวหน้า'));
+    adminContainer.style.display = isAdmOrMgr ? 'block' : 'none';
   }
   
   const empName = sessionUser.FullName || sessionUser.Name || sessionUser.Username || '';
@@ -345,6 +358,10 @@ window.renderView = function(viewId) {
 // ==========================================
 // 🐞 IMPERSONATION MODE (View As User Sandbox) - ROBUST V84
 // ==========================================
+
+// ==========================================
+// 🐞 IMPERSONATION MODE (View As User Sandbox) - ROBUST V85
+// ==========================================
 window.impersonateUser = function(userId) {
   if (!confirm('🐞 ยืนยันเข้าตรวจสอบระบบในมุมมองของ User ID: ' + userId + ' ใช่หรือไม่?')) return;
   
@@ -383,10 +400,10 @@ window.impersonateUser = function(userId) {
   if (window.currentData && typeof window.currentData === 'function') {
     const data = window.currentData();
     if (data && data.users) {
-      targetUser = data.users.find(u => String(u['User ID']) === String(userId) || String(u.Email) === String(userId) || String(u.EmployeeID) === String(userId));
+      targetUser = data.users.find(u => String(u['User ID']) === String(userId) || String(u.Email || '').toLowerCase() === String(userId).toLowerCase() || String(u.EmployeeID) === String(userId) || String(u.Username) === String(userId) || String(u.Name) === String(userId));
     }
     if (!targetUser && data && data.employees) {
-      targetUser = data.employees.find(u => String(u.id) === String(userId) || String(u.Email) === String(userId) || String(u.EmployeeID) === String(userId));
+      targetUser = data.employees.find(u => String(u.id) === String(userId) || String(u.Email || '').toLowerCase() === String(userId).toLowerCase() || String(u.EmployeeID) === String(userId) || String(u.name) === String(userId) || String(u.Name) === String(userId));
     }
   }
   
@@ -487,9 +504,18 @@ window.checkImpersonationStatus = function() {
       if (document.body) document.body.prepend(banner);
       else window.addEventListener('DOMContentLoaded', () => document.body.prepend(banner));
     }
+    
+    // Enforce hiding admin/manager containers right away when in impersonation mode with non-admin/non-manager role
+    const r = String(currentSession.Role || currentSession.role || '').trim().toLowerCase();
+    if (r !== 'admin' && r !== 'manager' && !r.includes('admin') && !r.includes('manager') && !r.includes('ผู้ดูแล') && !r.includes('หัวหน้า')) {
+      const adminContainer = document.getElementById('leave-admin-container');
+      if (adminContainer) adminContainer.style.display = 'none';
+      document.querySelectorAll('[data-user-approver]').forEach((el) => el.hidden = true);
+    }
   }
 };
 if (typeof window !== 'undefined') {
   setTimeout(() => window.checkImpersonationStatus(), 300);
 }
+
 
