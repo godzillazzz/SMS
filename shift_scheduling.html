@@ -4508,23 +4508,7 @@ Chart.defaults.plugins.tooltip.bodyFont = { size: 12 };
       modal.style.display = 'none';
       renderView('calendar');
 
-      if (autoSaveTimer) clearTimeout(autoSaveTimer);
-      autoSaveTimer = setTimeout(() => {
-        const currentChanges = Array.from(pendingShiftChanges.values());
-        if (!currentChanges.length) return;
-        const saveBtn = document.querySelector('[data-action="save-all-schedule-changes"]');
-        if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Auto-Saving...'; }
-        google.script.run
-          .withSuccessHandler((result) => {
-            pendingShiftChanges.clear();
-            refreshCalendarData('บันทึกอัตโนมัติสำเร็จ ' + result.updatedRows + ' รายการ\nรอ Admin อนุมัติ');
-          })
-          .withFailureHandler((error) => {
-            if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'บันทึกการเปลี่ยนแปลงทั้งหมด (' + pendingShiftChanges.size + ')'; }
-            window.alert('Auto-Save ไม่สำเร็จ: ' + error.message);
-          })
-          .updateEmployeeShifts(currentChanges, sessionToken());
-      }, 3000);
+
       return;
     }
 
@@ -4596,23 +4580,7 @@ Chart.defaults.plugins.tooltip.bodyFont = { size: 12 };
       pendingShiftChanges.set(payload.employeeId + '|' + payload.date, payload);
       renderView('calendar');
       
-      if (autoSaveTimer) clearTimeout(autoSaveTimer);
-      autoSaveTimer = setTimeout(() => {
-        const currentChanges = Array.from(pendingShiftChanges.values());
-        if (!currentChanges.length) return;
-        const saveBtn = document.querySelector('[data-action="save-all-schedule-changes"]');
-        if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Auto-Saving...'; }
-        google.script.run
-          .withSuccessHandler((result) => {
-            pendingShiftChanges.clear();
-            refreshCalendarData('บันทึกอัตโนมัติสำเร็จ ' + result.updatedRows + ' รายการ\nรอ Admin อนุมัติ');
-          })
-          .withFailureHandler((error) => {
-            if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'บันทึกการเปลี่ยนแปลงทั้งหมด (' + pendingShiftChanges.size + ')'; }
-            window.alert('Auto-Save ไม่สำเร็จ: ' + error.message);
-          })
-          .updateEmployeeShifts(currentChanges, sessionToken());
-      }, 3000);
+
       return;
     }
 
