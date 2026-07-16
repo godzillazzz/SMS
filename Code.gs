@@ -5222,6 +5222,9 @@ function getAllEmployeeEmails_(spreadsheet) {
   try {
     const employees = readObjects_(spreadsheet.getSheetByName('Employees'));
     employees.forEach(function(e) {
+      const status = String(e.Status || '').trim().toLowerCase();
+      if (status !== 'active') return; // Only send to Active employees!
+      
       const email = String(e.Email || e.email || '').trim();
       if (email && email.indexOf('@') !== -1 && emails.indexOf(email) === -1) {
         emails.push(email);
@@ -5235,6 +5238,9 @@ function getAllEmployeeEmails_(spreadsheet) {
   try {
     const users = readObjects_(spreadsheet.getSheetByName('Users'));
     users.forEach(function(u) {
+      const status = String(u.Status || u.status || '').trim().toLowerCase();
+      if (status !== 'active') return; // Only send to Active users!
+      
       const email = String(u.Email || u.email || '').trim();
       if (email && email.indexOf('@') !== -1 && emails.indexOf(email) === -1) {
         emails.push(email);
