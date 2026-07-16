@@ -5072,11 +5072,28 @@ window.impersonateUser = function(userId) {
   let targetUser = null;
   if (window.currentData && typeof window.currentData === 'function') {
     const data = window.currentData();
+    const norm = (s) => String(s || '').trim().toLowerCase().replace(/^usr[-_]/, '');
+    const cleanUserId = norm(userId);
     if (data && data.users) {
-      targetUser = data.users.find(u => String(u['User ID']) === String(userId) || String(u.Email || '').toLowerCase() === String(userId).toLowerCase() || String(u.EmployeeID) === String(userId) || String(u.Username) === String(userId) || String(u.Name) === String(userId));
+      targetUser = data.users.find(u => {
+        return norm(u['User ID']) === cleanUserId ||
+               norm(u.EmployeeID) === cleanUserId ||
+               norm(u.id) === cleanUserId ||
+               norm(u.Username) === cleanUserId ||
+               norm(u.Email) === cleanUserId ||
+               norm(u.Name) === cleanUserId ||
+               String(u.Email || '').toLowerCase() === String(userId).toLowerCase();
+      });
     }
     if (!targetUser && data && data.employees) {
-      targetUser = data.employees.find(u => String(u.id) === String(userId) || String(u.Email || '').toLowerCase() === String(userId).toLowerCase() || String(u.EmployeeID) === String(userId) || String(u.name) === String(userId) || String(u.Name) === String(userId));
+      targetUser = data.employees.find(u => {
+        return norm(u.id) === cleanUserId ||
+               norm(u.EmployeeID) === cleanUserId ||
+               norm(u.name) === cleanUserId ||
+               norm(u.Name) === cleanUserId ||
+               norm(u.Email) === cleanUserId ||
+               String(u.Email || '').toLowerCase() === String(userId).toLowerCase();
+      });
     }
   }
   
