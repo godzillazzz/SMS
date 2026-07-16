@@ -2867,8 +2867,14 @@ Chart.defaults.plugins.tooltip.bodyFont = { size: 12 };
   }
   return window.shiftFlowCurrentUser || window.sessionUser || {};
 };
-  const isAdmin = () => String(currentSessionUser().role || '').toLowerCase() === 'admin';
-  const isManager = () => String(currentSessionUser().role || '').toLowerCase() === 'manager';
+  const isAdmin = () => {
+    const r = String(currentSessionUser().role || currentSessionUser().Role || '').trim().toLowerCase();
+    return r === 'admin' || r.includes('admin') || r.includes('ผู้ดูแล');
+  };
+  const isManager = () => {
+    const r = String(currentSessionUser().role || currentSessionUser().Role || '').trim().toLowerCase();
+    return r === 'manager' || r.includes('manager') || r.includes('หัวหน้า');
+  };
   const canManageSchedules = () => isAdmin() || isManager();
   const canAddEmployees = () => isAdmin() || isManager();
   const canAddLicenses = () => isAdmin() || isManager();
