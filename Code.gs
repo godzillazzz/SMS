@@ -4911,7 +4911,8 @@ function updateLeaveStatus(token, leaveId, status) {
                   "📋 ประเภท: " + leaveType + " (" + leaveDays + " วัน)\n" +
                   "🔄 ผลการตรวจรับ: " + statusIcon;
     }
-    try { sendLineToGroup_(updateMsg); } catch(e) {}
+    // Disabled to save Line Messaging API quota:
+    // try { sendLineToGroup_(updateMsg); } catch(e) {}
 
     return { success: true };
   } finally {
