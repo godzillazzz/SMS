@@ -2616,6 +2616,50 @@ function commitAutoSchedule(startDate, token) {
   };
 }
 
+function getEmployeeLastShiftInfo(employeeId, targetMonth, token) {
+  requireManagerOrAdmin_(token);
+  const spreadsheet = getOrCreateSpreadsheet_();
+  const timeZone = spreadsheet.getSpreadsheetTimeZone();
+  const scheduleSheet = spreadsheet.getSheetByName('Schedule');
+  if (!scheduleSheet || scheduleSheet.getLastRow() < 2) {
+    return { success: true, history: [] };
+  }
+  
+  const targetDateStr = String(targetMonth || '').trim() + '-01';
+  let targetTime = 0;
+  try {
+    targetTime = new Date(targetDateStr).getTime();
+  } catch (e) {
+    targetTime = new Date().getTime();
+  }
+  if (isNaN(targetTime)) {
+    targetTime = new Date().getTime();
+  }
+
+  const allShifts = readSchedule_(spreadsheet, timeZone).filter(function(row) {
+    if (row.employeeId !== employeeId) return false;
+    if (!row.date) return false;
+    let rowTime = 0;
+    try {
+      rowTime = new Date(row.date).getTime();
+    } catch(e) {
+      return false;
+    }
+    return !isNaN(rowTime) && rowTime < targetTime;
+  });
+
+  allShifts.sort(function(a, b) {
+    return new Date(b.date).getTime() - new Date(a.date).getTime();
+  });
+
+  return {
+    success: true,
+    history: allShifts.slice(0, 14).map(function(row) {
+      return { date: row.date, code: row.code };
+    })
+  };
+}
+
 function updateEmployeeShifts(changes, token) {
   const operator = requireManagerOrAdmin_(token);
   if (!Array.isArray(changes) || !changes.length) throw new Error('No schedule changes were submitted.');

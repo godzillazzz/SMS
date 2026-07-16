@@ -2604,6 +2604,19 @@ Chart.defaults.plugins.tooltip.bodyFont = { size: 12 };
   });
 
   document.addEventListener('change', (event) => {
+    if (event.target.name === 'wizard-pattern') {
+      const container = document.getElementById('wizard-start-phase-container');
+      if (container) {
+        container.style.display = event.target.value === 'rotating' ? 'flex' : 'none';
+      }
+      return;
+    }
+    if (event.target.id === 'wizard-auto-continue') {
+      const employeeId = document.getElementById('wizard-employee-id').value;
+      if (employeeId) window.loadHistorySuggestion(employeeId);
+      return;
+    }
+    
     const checkbox = event.target.closest?.('[data-dashboard-department-choice]');
     if (!checkbox) return;
     const department = checkbox.value;
@@ -3061,7 +3074,15 @@ Chart.defaults.plugins.tooltip.bodyFont = { size: 12 };
     );
     const rows = visibleEmployees.map((employee) => `
       <tr>
-        <td class="emp-cell" style="padding-left:20px;"><div class="emp-info"><span class="emp-name">${safe(employee.name)}</span><span class="emp-dept">${safe(employee.department)} \u00b7 ${safe(employee.position)}</span></div></td>
+        <td class="emp-cell" style="padding-left:20px;">
+          <div class="emp-info" style="display:flex;align-items:center;justify-content:space-between;width:100%;">
+            <div style="display:flex;flex-direction:column;text-align:left;">
+              <span class="emp-name" style="font-weight:600;">${safe(employee.name)}</span>
+              <span class="emp-dept" style="font-size:11px;color:#64748B;">${safe(employee.department)} \u00b7 ${safe(employee.position)}</span>
+            </div>
+            ${scheduleOperator ? `<button type="button" class="btn-wizard" data-action="open-pattern-wizard" data-employee-id="${safe(employee.id)}" data-employee-name="${safe(employee.name)}" title="🪄 จัดกะแพทเทิร์นด่วน" style="background:none;border:none;cursor:pointer;font-size:16px;padding:2px 6px;margin-left:6px;border-radius:4px;transition:background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.05)'" onmouseout="this.style.background='none'">🪄</button>` : ''}
+          </div>
+        </td>
         ${(employee.shifts || []).filter((shift) => String(shift.date).startsWith(scheduleMonth)).map((shift) => {
           const key = `${employee.id}|${shift.date}`;
           const pending = pendingShiftChanges.get(key);
@@ -3166,6 +3187,70 @@ Chart.defaults.plugins.tooltip.bodyFont = { size: 12 };
         </div>
       </div>
       <div id="auto-schedule-preview"></div>
+      <div id="manual-shift-editor" hidden style="position:fixed;width:100%;max-width:450px;z-index:9999;box-shadow:0 10px 25px rgba(0,0,0,0.3);padding:16px;border:2px solid #FBBF24;background:#FFFBEB;border-radius:12px;margin:0;left:-9999px;">
+      </div>
+      <div id="pattern-wizard-modal" hidden style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px;">
+        <div style="background:white;width:100%;max-width:480px;border-radius:16px;box-shadow:0 20px 25px -5px rgba(0,0,0,0.1),0 10px 10px -5px rgba(0,0,0,0.04);padding:24px;border:1px solid #e2e8f0;display:flex;flex-direction:column;gap:18px;text-align:left;">
+          <div style="display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #f1f5f9;padding-bottom:12px;">
+            <h3 style="margin:0;font-size:18px;font-weight:700;color:#1e293b;display:flex;align-items:center;gap:8px;">🪄 จัดกะแพทเทิร์นด่วน</h3>
+            <button type="button" data-action="close-pattern-wizard" style="background:none;border:none;cursor:pointer;font-size:20px;color:#94a3b8;line-height:1;">&times;</button>
+          </div>
+          <input type="hidden" id="wizard-employee-id">
+          <div style="font-size:14px;color:#475569;">
+            พนักงาน: <b id="wizard-employee-label" style="color:#1e293b;font-size:15px;">-</b>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            <span style="font-size:13px;font-weight:600;color:#475569;">1. เลือกรูปแบบแพทเทิร์น (Pattern)</span>
+            <label style="display:flex;align-items:flex-start;gap:10px;padding:12px;border:1px solid #e2e8f0;border-radius:8px;cursor:pointer;transition:background 0.2s;" class="pattern-option">
+              <input type="radio" name="wizard-pattern" value="supervisor" style="margin-top:3px;" checked>
+              <div style="display:flex;flex-direction:column;gap:2px;">
+                <span style="font-weight:600;color:#1e293b;font-size:14px;">กะหัวหน้างาน (Supervisor)</span>
+                <span style="font-size:12px;color:#64748b;">เข้ากะเช้า 6 วัน (จันทร์-เสาร์) และหยุดวันอาทิตย์ (OFF) ทุกสัปดาห์</span>
+              </div>
+            </label>
+            <label style="display:flex;align-items:flex-start;gap:10px;padding:12px;border:1px solid #e2e8f0;border-radius:8px;cursor:pointer;transition:background 0.2s;" class="pattern-option">
+              <input type="radio" name="wizard-pattern" value="rotating" style="margin-top:3px;">
+              <div style="display:flex;flex-direction:column;gap:2px;">
+                <span style="font-weight:600;color:#1e293b;font-size:14px;">กะพนักงานเวียนลูป 14 วัน (Rotating Shift)</span>
+                <span style="font-size:12px;color:#64748b;">กะเช้า 6 วัน -> หยุด 1 วัน -> กะดึก 6 วัน -> หยุด 1 วัน (วนลูปต่อเนื่อง)</span>
+              </div>
+            </label>
+          </div>
+          <div id="wizard-start-phase-container" style="display:none;flex-direction:column;gap:10px;">
+            <span style="font-size:13px;font-weight:600;color:#475569;">2. เลือกจุดเริ่มของเดือนนี้ (สำหรับวันที่ 1 <span id="wizard-month-label"></span>)</span>
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+              <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:#334155;cursor:pointer;margin-bottom:6px;">
+                <input type="checkbox" id="wizard-auto-continue" checked>
+                <span>🔍 เชื่อมต่อลูปจากเดือนก่อนหน้าอัตโนมัติ</span>
+              </label>
+              <span id="wizard-history-loading" style="display:none;font-size:12px;color:#64748b;">⏳ กำลังคำนวณ...</span>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:6px;">
+              <span style="font-size:12px;color:#2563eb;font-weight:600;" id="wizard-history-suggestion-text"></span>
+              <select id="wizard-start-phase" style="padding:8px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px;background-color:white;width:100%;">
+                <option value="D1">กะเช้า วันที่ 1 (D1)</option>
+                <option value="D2">กะเช้า วันที่ 2 (D2)</option>
+                <option value="D3">กะเช้า วันที่ 3 (D3)</option>
+                <option value="D4">กะเช้า วันที่ 4 (D4)</option>
+                <option value="D5">กะเช้า วันที่ 5 (D5)</option>
+                <option value="D6">กะเช้า วันที่ 6 (D6)</option>
+                <option value="OFF-D">วันหยุดหลังกะเช้า (OFF-D)</option>
+                <option value="N1">กะดึก วันที่ 1 (N1)</option>
+                <option value="N2">กะดึก วันที่ 2 (N2)</option>
+                <option value="N3">กะดึก วันที่ 3 (N3)</option>
+                <option value="N4">กะดึก วันที่ 4 (N4)</option>
+                <option value="N5">กะดึก วันที่ 5 (N5)</option>
+                <option value="N6">กะดึก วันที่ 6 (N6)</option>
+                <option value="OFF-N">วันหยุดหลังกะดึก (OFF-N)</option>
+              </select>
+            </div>
+          </div>
+          <div style="display:flex;justify-content:flex-end;gap:12px;border-top:1px solid #f1f5f9;padding-top:16px;margin-top:4px;">
+            <button type="button" class="btn btn-ghost" data-action="close-pattern-wizard">ยกเลิก</button>
+            <button type="button" class="btn btn-primary" data-action="apply-pattern-wizard">🪄 ใส่กะลงปฏิทิน</button>
+          </div>
+        </div>
+      </div>
       <div id="manual-shift-editor" hidden style="position:fixed;width:100%;max-width:450px;z-index:9999;box-shadow:0 10px 25px rgba(0,0,0,0.3);padding:16px;border:2px solid #FBBF24;background:#FFFBEB;border-radius:12px;margin:0;left:-9999px;">
         <div style="font-weight:700;margin-bottom:10px;">\u0e41\u0e01\u0e49\u0e01\u0e30: <span id="manual-shift-label"></span></div>
         <input type="hidden" id="manual-employee-id"><input type="hidden" id="manual-shift-date">
@@ -3909,6 +3994,112 @@ Chart.defaults.plugins.tooltip.bodyFont = { size: 12 };
       .getAppData(sessionToken());
   };
 
+  const loadHistorySuggestion = (employeeId) => {
+    const autoContinue = document.getElementById('wizard-auto-continue')?.checked;
+    const select = document.getElementById('wizard-start-phase');
+    const loading = document.getElementById('wizard-history-loading');
+    const suggestionText = document.getElementById('wizard-history-suggestion-text');
+    
+    if (!autoContinue) {
+      if (select) select.disabled = false;
+      if (loading) loading.style.display = 'none';
+      if (suggestionText) suggestionText.textContent = '';
+      return;
+    }
+
+    if (select) select.disabled = true;
+    if (loading) loading.style.display = 'inline';
+    if (suggestionText) suggestionText.textContent = '⏳ กำลังดึงประวัติกะจากเดือนก่อนหน้า...';
+
+    google.script.run
+      .withSuccessHandler((res) => {
+        const currentAuto = document.getElementById('wizard-auto-continue')?.checked;
+        if (!currentAuto) return;
+        if (loading) loading.style.display = 'none';
+        
+        let suggestion = 'D1';
+        let reason = '';
+        
+        if (res && res.success && Array.isArray(res.history) && res.history.length > 0) {
+          const history = res.history;
+          const targetDateStr = selectedScheduleMonth + '-01';
+          const targetDate = new Date(targetDateStr + 'T00:00:00');
+          const lastShift = history[0];
+          const lastShiftDate = new Date(lastShift.date + 'T00:00:00');
+          const dayDiff = Math.round((targetDate - lastShiftDate) / (1000 * 60 * 60 * 24));
+          
+          if (dayDiff !== 1) {
+            suggestion = 'D1';
+            reason = `ไม่พบประวัติกะต่อเนื่อง (กะล่าสุดเมื่อ ${buddhistDate(lastShift.date)}, ห่างกัน ${dayDiff} วัน) เริ่มต้นที่ D1`;
+          } else {
+            const lastCode = lastShift.code;
+            if (lastCode === 'OFF') {
+              let prevWorkedShift = 'N';
+              for (let i = 1; i < history.length; i++) {
+                if (history[i].code && history[i].code !== 'OFF') {
+                  prevWorkedShift = history[i].code;
+                  break;
+                }
+              }
+              if (prevWorkedShift === 'D') {
+                suggestion = 'N1';
+                reason = `วิเคราะห์จากประวัติ: ล่าสุดหยุดหลังกะเช้า (OFF-D) -> เริ่มกะดึกวันแรก (N1)`;
+              } else {
+                suggestion = 'D1';
+                reason = `วิเคราะห์จากประวัติ: ล่าสุดหยุดหลังกะดึก (OFF-N) -> เริ่มกะเช้าวันแรก (D1)`;
+              }
+            } else if (lastCode === 'D' || lastCode === 'N') {
+              let consecutiveDays = 0;
+              for (let i = 0; i < history.length; i++) {
+                if (history[i].code === lastCode) {
+                  consecutiveDays++;
+                } else {
+                  break;
+                }
+              }
+              consecutiveDays = Math.min(6, consecutiveDays);
+              const label = lastCode === 'D' ? 'เช้า' : 'ดึก';
+              
+              if (consecutiveDays < 6) {
+                const nextDay = consecutiveDays + 1;
+                suggestion = lastCode + nextDay;
+                reason = `วิเคราะห์จากประวัติ: ล่าสุดทำกะ${label}ติดต่อกัน ${consecutiveDays} วัน -> เริ่มกะ${label}วันที่ ${nextDay} (${suggestion})`;
+              } else {
+                suggestion = lastCode === 'D' ? 'OFF-D' : 'OFF-N';
+                const nextLabel = lastCode === 'D' ? 'กะเช้า' : 'กะดึก';
+                reason = `วิเคราะห์จากประวัติ: ล่าสุดทำกะ${label}ครบ 6 วัน -> เริ่มวันหยุดหลัง${nextLabel} (${suggestion})`;
+              }
+            } else {
+              suggestion = 'D1';
+              reason = `ไม่สามารถระบุแพทเทิร์นจากกะล่าสุด (${lastCode}) ได้ เริ่มต้นกะเช้าวันแรก (D1)`;
+            }
+          }
+        } else {
+          suggestion = 'D1';
+          reason = 'ไม่พบประวัติการจัดกะในเดือนก่อนหน้า เริ่มต้นกะเช้าวันแรก (D1)';
+        }
+        
+        if (suggestionText) suggestionText.textContent = reason;
+        if (select) {
+          select.value = suggestion;
+          select.disabled = true;
+        }
+      })
+      .withFailureHandler((err) => {
+        const currentAuto = document.getElementById('wizard-auto-continue')?.checked;
+        if (!currentAuto) return;
+        if (loading) loading.style.display = 'none';
+        if (suggestionText) suggestionText.textContent = '❌ ดึงประวัติไม่สำเร็จ: ' + err.message + ' (เริ่มต้นที่ D1)';
+        if (select) {
+          select.value = 'D1';
+          select.disabled = false;
+        }
+      })
+      .getEmployeeLastShiftInfo(employeeId, selectedScheduleMonth, sessionToken());
+  };
+  
+  window.loadHistorySuggestion = loadHistorySuggestion;
+
   const refreshCalendarData = (message) => {
     google.script.run.withSuccessHandler((data) => {
       selectedScheduleMonth = data.selectedMonth || selectedScheduleMonth;
@@ -4172,6 +4363,125 @@ Chart.defaults.plugins.tooltip.bodyFont = { size: 12 };
         .commitAutoSchedule(button.dataset.startDate, sessionToken());
       return;
     }
+    if (action === 'open-pattern-wizard') {
+      event.preventDefault();
+      const employeeId = button.dataset.employeeId;
+      const employeeName = button.dataset.employeeName;
+      const modal = document.getElementById('pattern-wizard-modal');
+      if (!modal) return;
+      document.getElementById('wizard-employee-id').value = employeeId;
+      document.getElementById('wizard-employee-label').textContent = employeeName + ' (' + employeeId + ')';
+      
+      const currentMonthText = buddhistMonth(selectedScheduleMonth);
+      const monthLabel = document.getElementById('wizard-month-label');
+      if (monthLabel) monthLabel.textContent = currentMonthText;
+
+      const startPhaseContainer = document.getElementById('wizard-start-phase-container');
+      if (startPhaseContainer) startPhaseContainer.style.display = 'none';
+      
+      const rotatingRadio = modal.querySelector('input[name="wizard-pattern"][value="rotating"]');
+      const supervisorRadio = modal.querySelector('input[name="wizard-pattern"][value="supervisor"]');
+      if (supervisorRadio) supervisorRadio.checked = true;
+
+      const autoContinueCheck = document.getElementById('wizard-auto-continue');
+      if (autoContinueCheck) autoContinueCheck.checked = true;
+
+      const suggestionText = document.getElementById('wizard-history-suggestion-text');
+      if (suggestionText) suggestionText.textContent = '';
+      
+      modal.hidden = false;
+      modal.style.display = 'flex';
+      
+      window.loadHistorySuggestion(employeeId);
+      return;
+    }
+
+    if (action === 'close-pattern-wizard') {
+      event.preventDefault();
+      const modal = document.getElementById('pattern-wizard-modal');
+      if (modal) {
+        modal.hidden = true;
+        modal.style.display = 'none';
+      }
+      return;
+    }
+
+    if (action === 'apply-pattern-wizard') {
+      event.preventDefault();
+      const employeeId = document.getElementById('wizard-employee-id').value;
+      const modal = document.getElementById('pattern-wizard-modal');
+      if (!modal || !employeeId) return;
+
+      const patternType = modal.querySelector('input[name="wizard-pattern"]:checked')?.value;
+      const startPhase = document.getElementById('wizard-start-phase').value || 'D1';
+
+      const data = currentData();
+      const employee = (data.employees || []).find((e) => String(e.id) === String(employeeId));
+      if (!employee) return alert('ไม่พบพนักงานในระบบ');
+
+      const viewDates = (data.dates || []).filter((date) => String(date).startsWith(selectedScheduleMonth));
+      if (!viewDates.length) return alert('ไม่พบวันที่สำหรับเดือนนี้');
+
+      if (patternType === 'supervisor') {
+        viewDates.forEach((dateStr) => {
+          const dateObj = new Date(dateStr + 'T00:00:00');
+          const dayOfWeek = dateObj.getDay();
+          const code = (dayOfWeek === 0) ? 'OFF' : 'D';
+          pendingShiftChanges.set(employeeId + '|' + dateStr, {
+            employeeId: employeeId,
+            date: dateStr,
+            code: code,
+            remark: '',
+            licenseOverride: false,
+            overrideReason: ''
+          });
+        });
+      } else if (patternType === 'rotating') {
+        const cycle = ['D', 'D', 'D', 'D', 'D', 'D', 'OFF', 'N', 'N', 'N', 'N', 'N', 'N', 'OFF'];
+        const phaseIndexes = {
+          'D1': 0, 'D2': 1, 'D3': 2, 'D4': 3, 'D5': 4, 'D6': 5, 'OFF-D': 6,
+          'N1': 7, 'N2': 8, 'N3': 9, 'N4': 10, 'N5': 11, 'N6': 12, 'OFF-N': 13
+        };
+        let cycleIndex = phaseIndexes[startPhase] || 0;
+
+        viewDates.forEach((dateStr) => {
+          const code = cycle[cycleIndex % 14];
+          pendingShiftChanges.set(employeeId + '|' + dateStr, {
+            employeeId: employeeId,
+            date: dateStr,
+            code: code,
+            remark: '',
+            licenseOverride: false,
+            overrideReason: ''
+          });
+          cycleIndex++;
+        });
+      }
+
+      modal.hidden = true;
+      modal.style.display = 'none';
+      renderView('calendar');
+
+      if (autoSaveTimer) clearTimeout(autoSaveTimer);
+      autoSaveTimer = setTimeout(() => {
+        const currentChanges = Array.from(pendingShiftChanges.values());
+        if (!currentChanges.length) return;
+        const saveBtn = document.querySelector('[data-action="save-all-schedule-changes"]');
+        if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Auto-Saving...'; }
+        google.script.run
+          .withSuccessHandler((result) => {
+            pendingShiftChanges.clear();
+            refreshCalendarData('บันทึกอัตโนมัติสำเร็จ ' + result.updatedRows + ' รายการ\nรอ Admin อนุมัติ');
+          })
+          .withFailureHandler((error) => {
+            if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'บันทึกการเปลี่ยนแปลงทั้งหมด (' + pendingShiftChanges.size + ')'; }
+            window.alert('Auto-Save ไม่สำเร็จ: ' + error.message);
+          })
+          .updateEmployeeShifts(currentChanges, sessionToken());
+      }, 10000);
+      return;
+    }
+
     if (action === 'edit-schedule') {
       event.preventDefault();
       const emp = (currentData().employees || []).find((item) => item.id === button.dataset.employeeId);
