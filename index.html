@@ -733,10 +733,13 @@ window.loadLeaveView = function() {
         statusBadge = `<span style="background: #fee2e2; color: #991b1b; padding: 4px 12px; border-radius: 20px; font-weight: 600; font-size: 12px; display: inline-flex; align-items: center; gap: 4px;">❌ ไม่อนุมัติ</span>`;
       }
 
+      const approverInfo = h.approvedBy ? `<div style="font-size: 10.5px; color: #64748b; margin-top: 4px; line-height: 1.2;">โดย: ${h.approvedBy}</div>` : '';
+      const approvedAtInfo = h.approvedAt ? `<div style="font-size: 10px; color: #94a3b8; margin-top: 1px;">${h.approvedAt}</div>` : '';
+
       histHtml += `<tr style="transition: background 0.15s; border-bottom: 1px solid #f1f5f9;">
         <td style="padding: 14px; font-weight: 500; color: #334155;">${window.cleanLeaveDateStr(h.date)}</td>
         <td style="padding: 14px;"><span style="background: #eff6ff; color: #2563eb; padding: 3px 10px; border-radius: 6px; font-size: 12.5px; font-weight: 600;">${h.type}</span></td>
-        <td style="padding: 14px; text-align: center;">${statusBadge}</td>
+        <td style="padding: 14px; text-align: center;">${statusBadge}${approverInfo}${approvedAtInfo}</td>
         <td style="padding: 14px; text-align: center;">${printBtn}</td>
       </tr>`;
     });
@@ -785,13 +788,16 @@ window.loadLeaveView = function() {
             statusBadge = `<span style="background: #fee2e2; color: #991b1b; padding: 4px 12px; border-radius: 20px; font-weight: 600; font-size: 12px; display: inline-flex; align-items: center; gap: 4px;">❌ ไม่อนุมัติ</span>`;
           }
 
+          const approverInfo = item.approvedBy ? `<div style="font-size: 10.5px; color: #64748b; margin-top: 4px; line-height: 1.2;">โดย: ${item.approvedBy}</div>` : '';
+          const approvedAtInfo = item.approvedAt ? `<div style="font-size: 10px; color: #94a3b8; margin-top: 1px;">${item.approvedAt}</div>` : '';
+
           allHtml += `<tr style="transition: background 0.15s; border-bottom: 1px solid #f1f5f9;">
             <td style="padding: 14px; font-weight: 600; color: #1e293b;">${item.name || item.empName || '-'}</td>
             <td style="padding: 14px;"><span style="background: #eff6ff; color: #2563eb; padding: 3px 10px; border-radius: 6px; font-size: 12.5px; font-weight: 600;">${item.type}</span></td>
             <td style="padding: 14px; color: #334155; font-weight: 500;">${window.cleanLeaveDateStr(item.date)}</td>
             <td style="padding: 14px; color: #1e293b; font-weight: 700;">${item.days}</td>
             <td style="padding: 14px; color: #475569; max-width: 200px;">${item.reason || '-'}</td>
-            <td style="padding: 14px; text-align: center;">${statusBadge}</td>
+            <td style="padding: 14px; text-align: center;">${statusBadge}${approverInfo}${approvedAtInfo}</td>
             <td style="padding: 14px; text-align: center;">${printBtn}</td>
           </tr>`;
         });

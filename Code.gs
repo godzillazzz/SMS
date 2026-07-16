@@ -4332,7 +4332,9 @@ function getAllLeaveHistory_(token) {
       days: days,
       reason: leaveData[j][7] ? String(leaveData[j][7]) : "",
       status: status,
-      fileUrl: leaveData[j][8] || ""
+      fileUrl: leaveData[j][8] || "",
+      approvedBy: leaveData[j][10] || "",
+      approvedAt: leaveData[j][11] ? formatDate_(leaveData[j][11], tz) : ""
     });
   }
   return list;
@@ -4342,9 +4344,15 @@ function ensureLeaveSheets_(spreadsheet) {
   let leaveSheet = spreadsheet.getSheetByName(LEAVE_SHEET_NAME);
   if (!leaveSheet) {
     leaveSheet = spreadsheet.insertSheet(LEAVE_SHEET_NAME);
-    leaveSheet.appendRow(["Timestamp", "ชื่อ-นามสกุล", "แผนก", "ประเภทการลา", "วันเริ่มต้น", "วันสิ้นสุด", "จำนวนวัน", "เหตุผล", "ไฟล์แนบ", "สถานะ"]);
-    leaveSheet.getRange("A1:J1").setFontWeight("bold").setBackground("#e0e0e0");
+    leaveSheet.appendRow(["Timestamp", "ชื่อ-นามสกุล", "แผนก", "ประเภทการลา", "วันเริ่มต้น", "วันสิ้นสุด", "จำนวนวัน", "เหตุผล", "ไฟล์แนบ", "สถานะ", "ผู้อนุมัติ", "วันเวลาที่อนุมัติ"]);
+    leaveSheet.getRange("A1:L1").setFontWeight("bold").setBackground("#e0e0e0");
     leaveSheet.setFrozenRows(1);
+  } else {
+    const lastCol = leaveSheet.getLastColumn();
+    if (lastCol < 11) {
+      leaveSheet.getRange(1, 11, 1, 2).setValues([["ผู้อนุมัติ", "วันเวลาที่อนุมัติ"]]);
+      leaveSheet.getRange("K1:L1").setFontWeight("bold").setBackground("#e0e0e0");
+    }
   }
   let quotaSheet = spreadsheet.getSheetByName(QUOTA_SHEET_NAME);
   if (!quotaSheet) {
@@ -4638,7 +4646,9 @@ function getLeaveSummary(token, filterName) {
         reason: leaveData[j][7] ? String(leaveData[j][7]) : "",
         status: status,
         days: days,
-        fileUrl: leaveData[j][8]
+        fileUrl: leaveData[j][8],
+        approvedBy: leaveData[j][10] || "",
+        approvedAt: leaveData[j][11] ? formatDate_(leaveData[j][11], tz) : ""
       });
 
       if (status === "อนุมัติ" && used[type] !== undefined) {
@@ -4659,7 +4669,9 @@ function getLeaveSummary(token, filterName) {
         days: days,
         reason: leaveData[j][7] ? String(leaveData[j][7]) : "",
         status: status,
-        fileUrl: leaveData[j][8] || ""
+        fileUrl: leaveData[j][8] || "",
+        approvedBy: leaveData[j][10] || "",
+        approvedAt: leaveData[j][11] ? formatDate_(leaveData[j][11], tz) : ""
       };
       allHistory.push(item);
       if (status === "รออนุมัติ") {
@@ -4808,6 +4820,8 @@ function updateLeaveStatus(token, leaveId, status) {
     }
 
     sheets.leaveSheet.getRange(rowNumber, 10).setValue(status);
+    sheets.leaveSheet.getRange(rowNumber, 11).setValue(`${user.name || 'Admin'} (${user.email || ''})`);
+    sheets.leaveSheet.getRange(rowNumber, 12).setValue(new Date()).setNumberFormat('yyyy-mm-dd hh:mm:ss');
 
     const statusIcon = (status === "อนุมัติ") ? "✅ อนุมัติแล้ว" : "❌ ไม่อนุมัติ";
     const props = PropertiesService.getScriptProperties();
