@@ -2483,7 +2483,7 @@ function buildAutoSchedulePlan_(startDate, adminUser) {
 }
 
 function previewAutoSchedule(startDate, token) {
-  const operator = requireManagerOrAdmin_(token);
+  const operator = requireAdmin_(token);
   return buildAutoSchedulePlan_(startDate, operator);
 }
 
@@ -2497,7 +2497,7 @@ function backupSchedule_(spreadsheet) {
 }
 
 function commitAutoSchedule(startDate, token) {
-  const operator = requireManagerOrAdmin_(token);
+  const operator = requireAdmin_(token);
   const plan = buildAutoSchedulePlan_(startDate, operator);
   const spreadsheet = getOrCreateSpreadsheet_();
   backupSchedule_(spreadsheet);
