@@ -4528,18 +4528,38 @@ Chart.defaults.plugins.tooltip.bodyFont = { size: 12 };
       const viewDates = (data.dates || []).filter((date) => String(date).startsWith(selectedScheduleMonth));
       if (!viewDates.length) return alert('ไม่พบวันที่สำหรับเดือนนี้');
 
+      const isUserAdmin = isAdmin();
+      let hasLicenseWarnings = false;
+
       if (patternType === 'supervisor') {
         viewDates.forEach((dateStr) => {
           const dateObj = new Date(dateStr + 'T00:00:00');
           const dayOfWeek = dateObj.getDay();
-          const code = (dayOfWeek === 0) ? 'OFF' : 'D';
+          let code = (dayOfWeek === 0) ? 'OFF' : 'D';
+
+          const dateShift = employee?.shifts?.find((s) => s.date === dateStr);
+          const licenseInvalid = dateShift?.licenseValid === false;
+
+          let override = false;
+          let reason = '';
+
+          if (licenseInvalid && code !== 'OFF') {
+            if (isUserAdmin) {
+              override = true;
+              reason = 'จัดกะด่วนผ่าน Wizard โดย Admin';
+            } else {
+              code = 'OFF';
+              hasLicenseWarnings = true;
+            }
+          }
+
           pendingShiftChanges.set(employeeId + '|' + dateStr, {
             employeeId: employeeId,
             date: dateStr,
             code: code,
             remark: '',
-            licenseOverride: false,
-            overrideReason: ''
+            licenseOverride: override,
+            overrideReason: reason
           });
         });
       } else if (patternType === 'rotating') {
@@ -4551,17 +4571,38 @@ Chart.defaults.plugins.tooltip.bodyFont = { size: 12 };
         let cycleIndex = phaseIndexes[startPhase] || 0;
 
         viewDates.forEach((dateStr) => {
-          const code = cycle[cycleIndex % 14];
+          let code = cycle[cycleIndex % 14];
+
+          const dateShift = employee?.shifts?.find((s) => s.date === dateStr);
+          const licenseInvalid = dateShift?.licenseValid === false;
+
+          let override = false;
+          let reason = '';
+
+          if (licenseInvalid && code !== 'OFF') {
+            if (isUserAdmin) {
+              override = true;
+              reason = 'จัดกะด่วนผ่าน Wizard โดย Admin';
+            } else {
+              code = 'OFF';
+              hasLicenseWarnings = true;
+            }
+          }
+
           pendingShiftChanges.set(employeeId + '|' + dateStr, {
             employeeId: employeeId,
             date: dateStr,
             code: code,
             remark: '',
-            licenseOverride: false,
-            overrideReason: ''
+            licenseOverride: override,
+            overrideReason: reason
           });
           cycleIndex++;
         });
+      }
+
+      if (hasLicenseWarnings) {
+        window.alert('⚠️ ตรวจพบว่าพนักงานรายนี้มีใบอนุญาตหมดอายุในบางช่วงเวลาของเดือนนี้\nระบบได้เปลี่ยนกะการทำงานเฉพาะช่วงเวลาดังกล่าวให้เป็นกะหยุด (OFF) อัตโนมัติ (เฉพาะผู้ใช้บัญชี Admin เท่านั้นที่สามารถจัดกะทำงานในช่วงเวลาใบอนุญาตหมดอายุได้)');
       }
 
       modal.hidden = true;
@@ -4584,7 +4625,7 @@ Chart.defaults.plugins.tooltip.bodyFont = { size: 12 };
             window.alert('Auto-Save ไม่สำเร็จ: ' + error.message);
           })
           .updateEmployeeShifts(currentChanges, sessionToken());
-      }, 10000);
+      }, 3000);
       return;
     }
 
@@ -4672,7 +4713,7 @@ Chart.defaults.plugins.tooltip.bodyFont = { size: 12 };
             window.alert('Auto-Save ไม่สำเร็จ: ' + error.message);
           })
           .updateEmployeeShifts(currentChanges, sessionToken());
-      }, 10000);
+      }, 3000);
       return;
     }
 
