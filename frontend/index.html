@@ -4173,7 +4173,7 @@ Chart.defaults.plugins.tooltip.bodyFont = { size: 12 };
 
 
 window.testLineNotification = function() {
-  const token = sessionToken();
+  const token = String((typeof getActiveSessionUser === 'function' ? getActiveSessionUser() : {}).token || '');
   const btn = document.getElementById('btn-test-line');
   if (btn) btn.innerText = '⏳ กำลังยิงข้อความทดสอบ...';
   google.script.run
@@ -4194,7 +4194,7 @@ window.testLineNotification = function() {
 };
 
 window.saveLineSettingsForm = function() {
-  const token = sessionToken();
+  const token = String((typeof getActiveSessionUser === 'function' ? getActiveSessionUser() : {}).token || '');
   const lineToken = document.getElementById('line-token-input').value;
   const groupId = document.getElementById('line-group-input').value;
   const templateNewLeave = document.getElementById('line-template-new').value;
