@@ -4443,7 +4443,7 @@ Chart.defaults.plugins.tooltip.bodyFont = { size: 12 };
           let reason = '';
 
           if (licenseInvalid && code !== 'OFF') {
-            code = '-';
+            code = 'OFF';
             hasLicenseWarnings = true;
           }
 
@@ -4474,7 +4474,7 @@ Chart.defaults.plugins.tooltip.bodyFont = { size: 12 };
           let reason = '';
 
           if (licenseInvalid && code !== 'OFF') {
-            code = '-';
+            code = 'OFF';
             hasLicenseWarnings = true;
           }
 
@@ -4491,7 +4491,7 @@ Chart.defaults.plugins.tooltip.bodyFont = { size: 12 };
       }
 
       if (hasLicenseWarnings) {
-        window.alert('⚠️ ตรวจพบว่าพนักงานรายนี้มีใบอนุญาตหมดอายุในบางช่วงเวลาของเดือนนี้ ระบบจึงงดจัดกะ (ตั้งเป็น \'-\') ในช่วงเวลาดังกล่าวอัตโนมัติ');
+        window.alert('⚠️ ตรวจพบว่าพนักงานรายนี้มีใบอนุญาตหมดอายุในบางช่วงเวลาของเดือนนี้ ระบบจึงงดจัดกะ (ตั้งเป็น \'OFF\') ในช่วงเวลาดังกล่าวอัตโนมัติ');
       }
 
       modal.hidden = true;
