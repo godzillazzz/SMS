@@ -5096,7 +5096,16 @@ window.impersonateUser = function(userId) {
   const targetId = targetUser['User ID'] || targetUser.EmployeeID || targetUser.id || userId;
   const targetName = targetUser.Name || targetUser.FullName || targetUser.name || ('พนักงานรหัส ' + userId);
   const targetEmail = targetUser.Email || targetUser.email || (userId + '@ptt.com');
-  const targetRole = targetUser.Role || targetUser.role || 'Viewer';
+  
+  let targetRole = targetUser.Role || targetUser.role || '';
+  if (!targetRole) {
+    const pos = String(targetUser.Position || targetUser.position || '').trim().toLowerCase();
+    if (pos === 'supervisor' || pos.includes('supervisor') || pos.includes('หัวหน้า') || pos.includes('leader')) {
+      targetRole = 'Manager';
+    } else {
+      targetRole = 'Viewer';
+    }
+  }
   const targetDept = targetUser.Department || targetUser.department || 'ส่วนปฏิบัติการระบบท่อเขต 11';
 
   const mockSession = {
