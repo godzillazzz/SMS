@@ -1576,6 +1576,63 @@ function approveScheduleMonth(month, note, token) {
     Note: approvalNote
   });
   SpreadsheetApp.flush();
+
+  // Generate PDF and send to all employees
+  try {
+    const exportResult = exportApprovedSchedule({ month: normalized, format: 'pdf', scope: 'all' }, token);
+    if (exportResult && exportResult.base64) {
+      const pdfBlob = Utilities.newBlob(Utilities.base64Decode(exportResult.base64), exportResult.mimeType, exportResult.fileName);
+      
+      const employeeEmails = getAllEmployeeEmails_(spreadsheet);
+      if (employeeEmails.length > 0) {
+        const emailSubject = `📢 [ประกาศ] ตารางปฏิบัติงานเดือน ${buddhistMonthLabel_(normalized)} ได้รับการอนุมัติแล้ว`;
+        const htmlBody = `
+<div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+  <div style="background: linear-gradient(135deg, #15803d 0%, #16a34a 100%); color: white; padding: 24px; text-align: center;">
+    <h2 style="margin: 0; font-size: 22px; font-weight: 700;">✅ ตารางกะได้รับการอนุมัติแล้ว</h2>
+    <p style="margin: 8px 0 0 0; font-size: 14px; opacity: 0.9;">ระบบจัดการตารางกะรักษาความปลอดภัย (SMS)</p>
+  </div>
+  <div style="padding: 24px; background-color: #ffffff; color: #334155;">
+    <p style="font-size: 16px; line-height: 1.5; margin-top: 0;">เรียน ทีมรักษาความปลอดภัยทุกท่าน,</p>
+    <p style="font-size: 15px; line-height: 1.5;">ขอแจ้งให้ทราบว่า ตารางกะปฏิบัติงานประจำเดือน <b>${buddhistMonthLabel_(normalized)}</b> ได้รับการตรวจสอบและอนุมัติจากผู้จัดการ (Admin) เรียบร้อยแล้ว</p>
+    
+    <p style="font-size: 15px; line-height: 1.5;">รายละเอียดการอนุมัติ:</p>
+    <table style="width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 14px;">
+      <tr>
+        <td style="padding: 10px; border-bottom: 1px solid #f1f5f9; font-weight: bold; width: 35%; color: #475569;">📅 ประจำเดือน:</td>
+        <td style="padding: 10px; border-bottom: 1px solid #f1f5f9; color: #0f172a; font-weight: 600;">${buddhistMonthLabel_(normalized)}</td>
+      </tr>
+      <tr>
+        <td style="padding: 10px; border-bottom: 1px solid #f1f5f9; font-weight: bold; color: #475569;">👤 ผู้อนุมัติ:</td>
+        <td style="padding: 10px; border-bottom: 1px solid #f1f5f9; color: #0f172a;">${admin.name || admin.Name || 'Admin'} (${admin.email})</td>
+      </tr>
+      <tr>
+        <td style="padding: 10px; border-bottom: 1px solid #f1f5f9; font-weight: bold; color: #475569;">📝 หมายเหตุการอนุมัติ:</td>
+        <td style="padding: 10px; border-bottom: 1px solid #f1f5f9; color: #0f172a;">${approvalNote || 'ไม่มีหมายเหตุ'}</td>
+      </tr>
+    </table>
+    
+    <p style="font-size: 14px; color: #64748b; line-height: 1.5;">* ท่านสามารถดูตารางกะฉบับสมบูรณ์ได้จากเอกสาร PDF ที่แนบมากับอีเมลฉบับนี้</p>
+  </div>
+  <div style="background-color: #f8fafc; padding: 16px; text-align: center; font-size: 12px; color: #94a3b8; border-top: 1px solid #e2e8f0;">
+    อีเมลแจ้งเตือนอัตโนมัติจากระบบ Security Management System
+  </div>
+</div>
+`;
+        
+        MailApp.sendEmail({
+          to: admin.email,
+          bcc: employeeEmails.join(','),
+          subject: emailSubject,
+          htmlBody: htmlBody,
+          attachments: [pdfBlob]
+        });
+      }
+    }
+  } catch (e) {
+    console.error("Failed to generate/send approved schedule email: " + e.toString());
+  }
+
   return scheduleApprovalState_(spreadsheet, normalized);
 }
 
@@ -5156,4 +5213,36 @@ function sendLeaveEmailNotification_(recipient, subject, htmlBody) {
     console.error("Failed to send email to " + recipient + ": " + e.toString());
     return { success: false, error: e.toString() };
   }
+}
+
+function getAllEmployeeEmails_(spreadsheet) {
+  const emails = [];
+  
+  // 1. From Employees
+  try {
+    const employees = readObjects_(spreadsheet.getSheetByName('Employees'));
+    employees.forEach(function(e) {
+      const email = String(e.Email || e.email || '').trim();
+      if (email && email.indexOf('@') !== -1 && emails.indexOf(email) === -1) {
+        emails.push(email);
+      }
+    });
+  } catch (err) {
+    console.error("Error reading employees for emails: " + err.toString());
+  }
+  
+  // 2. From Users
+  try {
+    const users = readObjects_(spreadsheet.getSheetByName('Users'));
+    users.forEach(function(u) {
+      const email = String(u.Email || u.email || '').trim();
+      if (email && email.indexOf('@') !== -1 && emails.indexOf(email) === -1) {
+        emails.push(email);
+      }
+    });
+  } catch (err) {
+    console.error("Error reading users for emails: " + err.toString());
+  }
+  
+  return emails;
 }
