@@ -4628,6 +4628,70 @@ function submitLeaveRequest(token, leaveData) {
     }
               
     sendLineToGroup_(msg);
+
+    // Send Email notification to Approvers (Admins/Managers)
+    try {
+      const approverEmails = getApproverEmails_(spreadsheet);
+      if (approverEmails.length > 0) {
+        const appUrl = ScriptApp.getService().getUrl() || "https://script.google.com/macros/s/AKfycbyNSu_HlAemXEdVjaxeNu-m15Uln5qBzv4-ZfnoyoIWKCbCuAfuLN1AnVX9s9zgxuuj/exec";
+        const emailSubject = `🔔 [คำขอลางานใหม่] รอการอนุมัติ - พนักงาน ${user.Name}`;
+        const fileLinkHtml = fileUrl && fileUrl.indexOf('http') !== -1 
+          ? `<a href="${fileUrl}" style="color: #2563eb; text-decoration: underline;">ดูไฟล์แนบ</a>` 
+          : `<span style="color: #64748b;">${fileUrl || 'ไม่มีไฟล์แนบ'}</span>`;
+          
+        const htmlBody = `
+<div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+  <div style="background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%); color: white; padding: 24px; text-align: center;">
+    <h2 style="margin: 0; font-size: 22px; font-weight: 700;">🔔 คำขอลางานใหม่</h2>
+    <p style="margin: 8px 0 0 0; font-size: 14px; opacity: 0.9;">ระบบจัดการตารางกะรักษาความปลอดภัย (SMS)</p>
+  </div>
+  <div style="padding: 24px; background-color: #ffffff; color: #334155;">
+    <p style="font-size: 16px; line-height: 1.5; margin-top: 0;">เรียน ผู้จัดการ / ผู้ดูแลระบบ,</p>
+    <p style="font-size: 15px; line-height: 1.5;">มีพนักงานยื่นคำขอลางานใหม่ในระบบ โดยรายละเอียดมีดังต่อไปนี้:</p>
+    
+    <table style="width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 14px;">
+      <tr>
+        <td style="padding: 10px; border-bottom: 1px solid #f1f5f9; font-weight: bold; width: 35%; color: #475569;">👤 ชื่อพนักงาน:</td>
+        <td style="padding: 10px; border-bottom: 1px solid #f1f5f9; color: #0f172a;">${user.Name}</td>
+      </tr>
+      <tr>
+        <td style="padding: 10px; border-bottom: 1px solid #f1f5f9; font-weight: bold; color: #475569;">📍 แผนก/พื้นที่:</td>
+        <td style="padding: 10px; border-bottom: 1px solid #f1f5f9; color: #0f172a;">${user.Department}</td>
+      </tr>
+      <tr>
+        <td style="padding: 10px; border-bottom: 1px solid #f1f5f9; font-weight: bold; color: #475569;">📋 ประเภทการลา:</td>
+        <td style="padding: 10px; border-bottom: 1px solid #f1f5f9; color: #2563eb; font-weight: 600;">${leaveData.leaveType} (${days} วัน)</td>
+      </tr>
+      <tr>
+        <td style="padding: 10px; border-bottom: 1px solid #f1f5f9; font-weight: bold; color: #475569;">📅 วันที่ลา:</td>
+        <td style="padding: 10px; border-bottom: 1px solid #f1f5f9; color: #0f172a;">${leaveData.startDate} ถึง ${leaveData.endDate}</td>
+      </tr>
+      <tr>
+        <td style="padding: 10px; border-bottom: 1px solid #f1f5f9; font-weight: bold; color: #475569;">📝 เหตุผล:</td>
+        <td style="padding: 10px; border-bottom: 1px solid #f1f5f9; color: #0f172a;">${leaveData.reason || '-'}</td>
+      </tr>
+      <tr>
+        <td style="padding: 10px; border-bottom: 1px solid #f1f5f9; font-weight: bold; color: #475569;">📎 ไฟล์แนบ:</td>
+        <td style="padding: 10px; border-bottom: 1px solid #f1f5f9; color: #0f172a;">${fileLinkHtml}</td>
+      </tr>
+    </table>
+    
+    <div style="text-align: center; margin-top: 30px; margin-bottom: 10px;">
+      <a href="${appUrl}" style="background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 15px; display: inline-block; box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2);">⚙️ ไปยังหน้าอนุมัติใบลา</a>
+    </div>
+  </div>
+  <div style="background-color: #f8fafc; padding: 16px; text-align: center; font-size: 12px; color: #94a3b8; border-top: 1px solid #e2e8f0;">
+    อีเมลแจ้งเตือนอัตโนมัติจากระบบ Security Management System
+  </div>
+</div>
+`;
+        
+        sendLeaveEmailNotification_(approverEmails.join(','), emailSubject, htmlBody);
+      }
+    } catch (e) {
+      console.error("New leave request email failed: " + e.toString());
+    }
+
     return { success: true, message: "ส่งใบลาสำเร็จ" };
   } finally {
     lock.releaseLock();
@@ -4914,6 +4978,67 @@ function updateLeaveStatus(token, leaveId, status) {
     // Disabled to save Line Messaging API quota:
     // try { sendLineToGroup_(updateMsg); } catch(e) {}
 
+    // Send Email notification to the Employee
+    try {
+      const empEmail = findEmployeeEmailByName_(spreadsheet, empName);
+      if (empEmail) {
+        const appUrl = ScriptApp.getService().getUrl() || "https://script.google.com/macros/s/AKfycbyNSu_HlAemXEdVjaxeNu-m15Uln5qBzv4-ZfnoyoIWKCbCuAfuLN1AnVX9s9zgxuuj/exec";
+        const statusText = status === "อนุมัติ" ? "อนุมัติเรียบร้อย (Approved)" : "ไม่อนุมัติ (Rejected)";
+        const statusColor = status === "อนุมัติ" ? "#16a34a" : "#dc2626";
+        const headerBg = status === "อนุมัติ" ? "linear-gradient(135deg, #15803d 0%, #16a34a 100%)" : "linear-gradient(135deg, #7f1d1d 0%, #b91c1c 100%)";
+        const statusIconHtml = status === "อนุมัติ" ? "✅" : "❌";
+        
+        const emailSubject = `📢 [อัปเดตสถานะใบลา] ผลการพิจารณาคำขอลาของคุณ - ${status === "อนุมัติ" ? "อนุมัติแล้ว" : "ไม่อนุมัติ"}`;
+        
+        const htmlBody = `
+<div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+  <div style="background: ${headerBg}; color: white; padding: 24px; text-align: center;">
+    <h2 style="margin: 0; font-size: 22px; font-weight: 700;">${statusIconHtml} ผลการพิจารณาคำขอลา</h2>
+    <p style="margin: 8px 0 0 0; font-size: 14px; opacity: 0.9;">ระบบจัดการตารางกะรักษาความปลอดภัย (SMS)</p>
+  </div>
+  <div style="padding: 24px; background-color: #ffffff; color: #334155;">
+    <p style="font-size: 16px; line-height: 1.5; margin-top: 0;">เรียน คุณ ${empName},</p>
+    <p style="font-size: 15px; line-height: 1.5;">คำขอลางานของคุณได้รับการตรวจสอบและพิจารณาโดยผู้บังคับบัญชาเรียบร้อยแล้ว โดยมีรายละเอียดดังนี้:</p>
+    
+    <table style="width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 14px;">
+      <tr>
+        <td style="padding: 10px; border-bottom: 1px solid #f1f5f9; font-weight: bold; width: 35%; color: #475569;">📋 ประเภทการลา:</td>
+        <td style="padding: 10px; border-bottom: 1px solid #f1f5f9; color: #0f172a; font-weight: 600;">${leaveType} (${leaveDays} วัน)</td>
+      </tr>
+      <tr>
+        <td style="padding: 10px; border-bottom: 1px solid #f1f5f9; font-weight: bold; color: #475569;">📅 วันที่ลา:</td>
+        <td style="padding: 10px; border-bottom: 1px solid #f1f5f9; color: #0f172a;">${startDateStr} ถึง ${endDateStr}</td>
+      </tr>
+      <tr>
+        <td style="padding: 10px; border-bottom: 1px solid #f1f5f9; font-weight: bold; color: #475569;">🔄 สถานะผลอนุมัติ:</td>
+        <td style="padding: 10px; border-bottom: 1px solid #f1f5f9; color: ${statusColor}; font-weight: bold; font-size: 16px;">${statusText}</td>
+      </tr>
+      <tr>
+        <td style="padding: 10px; border-bottom: 1px solid #f1f5f9; font-weight: bold; color: #475569;">👤 ผู้พิจารณา:</td>
+        <td style="padding: 10px; border-bottom: 1px solid #f1f5f9; color: #0f172a;">${user.name || user.Name || 'Admin'} (${user.email || user.Email || ''})</td>
+      </tr>
+      <tr>
+        <td style="padding: 10px; border-bottom: 1px solid #f1f5f9; font-weight: bold; color: #475569;">🕒 เวลาพิจารณา:</td>
+        <td style="padding: 10px; border-bottom: 1px solid #f1f5f9; color: #0f172a;">${new Date().toLocaleString('th-TH')}</td>
+      </tr>
+    </table>
+    
+    <div style="text-align: center; margin-top: 30px; margin-bottom: 10px;">
+      <a href="${appUrl}" style="background-color: #475569; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 15px; display: inline-block;">⚙️ เข้าสู่ระบบ SMS เพื่อดูรายละเอียด</a>
+    </div>
+  </div>
+  <div style="background-color: #f8fafc; padding: 16px; text-align: center; font-size: 12px; color: #94a3b8; border-top: 1px solid #e2e8f0;">
+    อีเมลแจ้งเตือนอัตโนมัติจากระบบ Security Management System
+  </div>
+</div>
+`;
+        
+        sendLeaveEmailNotification_(empEmail, emailSubject, htmlBody);
+      }
+    } catch (e) {
+      console.error("Employee leave update email failed: " + e.toString());
+    }
+
     return { success: true };
   } finally {
     lock.releaseLock();
@@ -4979,4 +5104,56 @@ function testLineMessage(token) {
   const testMsg = "🔔 [ทดสอบระบบ SMS] ข้อความนี้ถูกส่งจากหน้าจัดการการลาโดย: " + empName + " (" + new Date().toLocaleString('th-TH') + ")";
   const result = sendLineToGroup_(testMsg);
   return result;
+}
+
+function getApproverEmails_(spreadsheet) {
+  const users = readObjects_(spreadsheet.getSheetByName('Users'));
+  const approverEmails = [];
+  users.forEach(function(u) {
+    const r = String(u.Role || u.role || '').trim().toLowerCase();
+    const isApprover = r === 'admin' || r === 'manager' || r.includes('admin') || r.includes('manager') || r.includes('ผู้ดูแล') || r.includes('หัวหน้า');
+    const email = String(u.Email || u.email || '').trim();
+    if (isApprover && email && approverEmails.indexOf(email) === -1) {
+      approverEmails.push(email);
+    }
+  });
+  return approverEmails;
+}
+
+function findEmployeeEmailByName_(spreadsheet, empName) {
+  const targetEmpNameClean = normalizeEmpName_(empName);
+  
+  // Try matching against Users
+  const users = readObjects_(spreadsheet.getSheetByName('Users'));
+  const matchedUser = users.find(function(u) {
+    return normalizeEmpName_(u.Name || u.FullName || u.email || '') === targetEmpNameClean;
+  });
+  if (matchedUser && (matchedUser.Email || matchedUser.email)) {
+    return String(matchedUser.Email || matchedUser.email).trim();
+  }
+  
+  // Try matching against Employees
+  const employees = readObjects_(spreadsheet.getSheetByName('Employees'));
+  const matchedEmp = employees.find(function(e) {
+    return normalizeEmpName_(e.Name || e.name || '') === targetEmpNameClean;
+  });
+  if (matchedEmp && (matchedEmp.Email || matchedEmp.email)) {
+    return String(matchedEmp.Email || matchedEmp.email).trim();
+  }
+  
+  return '';
+}
+
+function sendLeaveEmailNotification_(recipient, subject, htmlBody) {
+  try {
+    MailApp.sendEmail({
+      to: recipient,
+      subject: subject,
+      htmlBody: htmlBody
+    });
+    return { success: true };
+  } catch (e) {
+    console.error("Failed to send email to " + recipient + ": " + e.toString());
+    return { success: false, error: e.toString() };
+  }
 }
