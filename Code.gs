@@ -1316,7 +1316,7 @@ function logoutUser(token) {
 
 function requireAdmin_(token) {
   const user = requireActiveSession_(token);
-  if (String(user.role || '').trim().toLowerCase() !== 'admin') {
+  if (!isAdminUser_(user)) {
     throw new Error('เฉพาะ Admin เท่านั้นที่ดำเนินการนี้ได้');
   }
   return user;
@@ -1324,15 +1324,16 @@ function requireAdmin_(token) {
 
 function requireManagerOrAdmin_(token) {
   const user = requireActiveSession_(token);
-  const role = String(user.role || '').trim().toLowerCase();
-  if (['admin', 'manager'].indexOf(role) === -1) {
+  if (!isAdminOrManager_(user)) {
     throw new Error('เฉพาะ Admin หรือ Manager เท่านั้นที่ดำเนินการนี้ได้');
   }
   return user;
 }
 
 function isAdminUser_(user) {
-  return String((user || {}).role || '').trim().toLowerCase() === 'admin';
+  if (!user) return false;
+  const r = String(user.role || user.Role || '').trim().toLowerCase();
+  return r === 'admin' || r.includes('admin') || r.includes('ผู้ดูแล');
 }
 
 function ensureScheduleMetadataColumns_(sheet) {
@@ -3214,8 +3215,8 @@ function getOptimizedScheduleData(request, token) {
   enforceMaxWeeklyHours72_(spreadsheet.getSheetByName('Rules'));
   const timeZone = spreadsheet.getSpreadsheetTimeZone();
 
-  const isAdmin = userRole === 'admin' || isAdminUser_(sessionUser);
-  const isManager = userRole === 'manager';
+  const isAdmin = userRole === 'admin' || userRole.includes('admin') || userRole.includes('ผู้ดูแล') || isAdminUser_(sessionUser);
+  const isManager = userRole === 'manager' || userRole.includes('manager') || userRole.includes('หัวหน้า');
   
   const users = (isAdmin || isManager) ? safeUsers_(spreadsheet).filter(function(user) {
     return isAdmin || String(user.Status || '').trim().toLowerCase() === 'pending';
@@ -3473,7 +3474,7 @@ function getAppData(token) {
   const schedule = readSchedule_(spreadsheet, timeZone);
   const rules = parseRules_(readObjects_(spreadsheet.getSheetByName('Rules')));
   const dashboard = normalizeRows_(readObjects_(spreadsheet.getSheetByName('Dashboard')), timeZone);
-  const users = String(sessionUser.role || '').toLowerCase() === 'admin' ? safeUsers_(spreadsheet) : [];
+  const users = isAdminUser_(sessionUser) ? safeUsers_(spreadsheet) : [];
   const settings = normalizeRows_(readObjects_(spreadsheet.getSheetByName('Settings')), timeZone);
 
   const dates = unique_(schedule.map(function(row) { return row.date; })).sort();

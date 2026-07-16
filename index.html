@@ -4106,6 +4106,22 @@ Chart.defaults.plugins.tooltip.bodyFont = { size: 12 };
       .getAppData(sessionToken());
   };
 
+  const refreshUserData = (message) => {
+    google.script.run
+      .withSuccessHandler((data) => {
+        try {
+          window.shiftFlowData = data;
+          renderView('users');
+          if (message) window.alert(message);
+        } catch (error) {
+          window.alert(`บันทึกข้อมูลแล้ว แต่แสดงรายชื่อผู้ใช้งานไม่สำเร็จ: ${error.message}\nระบบจะโหลดหน้าใหม่`);
+          window.location.reload();
+        }
+      })
+      .withFailureHandler((error) => window.alert(`โหลดข้อมูลผู้ใช้งานไม่สำเร็จ: ${error.message}`))
+      .getAppData(sessionToken());
+  };
+
   const loadHistorySuggestion = (employeeId) => {
     const autoContinue = document.getElementById('wizard-auto-continue')?.checked;
     const select = document.getElementById('wizard-start-phase');
