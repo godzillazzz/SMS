@@ -2241,8 +2241,15 @@ function isoDate_(date, timeZone) {
 }
 
 function monthDates_(monthValue, timeZone) {
-  const match = String(monthValue || '').trim().match(/^(\d{4})-(\d{2})(?:-\d{2})?$/);
-  if (!match) throw new Error('Invalid month. Use YYYY-MM.');
+  let val = monthValue;
+  if (val instanceof Date) {
+    val = Utilities.formatDate(val, timeZone, 'yyyy-MM');
+  }
+  let match = String(val || '').trim().match(/^(\d{4})-(\d{2})(?:-\d{2})?$/);
+  if (!match) {
+    val = Utilities.formatDate(new Date(), timeZone, 'yyyy-MM');
+    match = val.match(/^(\d{4})-(\d{2})/);
+  }
   const year = Number(match[1]);
   const month = Number(match[2]);
   if (month < 1 || month > 12) throw new Error('Month must be between 01 and 12.');
@@ -2285,7 +2292,18 @@ function buildAutoSchedulePlan_(startDate, adminUser) {
   enforceMaxWeeklyHours72_(spreadsheet.getSheetByName('Rules'));
 
   const timeZone = spreadsheet.getSpreadsheetTimeZone();
-  const dates = monthDates_(startDate, timeZone);
+  
+  let targetMonth = startDate;
+  if (targetMonth instanceof Date) {
+    targetMonth = Utilities.formatDate(targetMonth, timeZone, 'yyyy-MM');
+  }
+  targetMonth = String(targetMonth || '').trim();
+  if (!targetMonth.match(/^\d{4}-\d{2}/)) {
+    targetMonth = Utilities.formatDate(new Date(), timeZone, 'yyyy-MM');
+  }
+  targetMonth = targetMonth.slice(0, 7);
+
+  const dates = monthDates_(targetMonth, timeZone);
   const dateSet = dates.reduce(function(map, date) { map[date] = true; return map; }, {});
   
   const rules = parseRules_(readObjects_(spreadsheet.getSheetByName('Rules')));
@@ -2386,7 +2404,7 @@ function buildAutoSchedulePlan_(startDate, adminUser) {
     
     let cycleIndex = 0;
     if (!isSup) {
-      const suggestedPhase = getSuggestedStartPhase_(id, startDate.slice(0, 7), schedule);
+      const suggestedPhase = getSuggestedStartPhase_(id, targetMonth, schedule);
       cycleIndex = phaseIndexes[suggestedPhase] || 0;
     }
 
