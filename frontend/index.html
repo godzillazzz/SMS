@@ -4022,13 +4022,8 @@ Chart.defaults.plugins.tooltip.bodyFont = { size: 12 };
           let reason = '';
 
           if (licenseInvalid && code !== 'OFF') {
-            if (isUserAdmin) {
-              override = true;
-              reason = 'จัดกะด่วนผ่าน Wizard โดย Admin';
-            } else {
-              code = 'OFF';
-              hasLicenseWarnings = true;
-            }
+            code = '-';
+            hasLicenseWarnings = true;
           }
 
           pendingShiftChanges.set(employeeId + '|' + dateStr, {
@@ -4058,13 +4053,8 @@ Chart.defaults.plugins.tooltip.bodyFont = { size: 12 };
           let reason = '';
 
           if (licenseInvalid && code !== 'OFF') {
-            if (isUserAdmin) {
-              override = true;
-              reason = 'จัดกะด่วนผ่าน Wizard โดย Admin';
-            } else {
-              code = 'OFF';
-              hasLicenseWarnings = true;
-            }
+            code = '-';
+            hasLicenseWarnings = true;
           }
 
           pendingShiftChanges.set(employeeId + '|' + dateStr, {
@@ -4080,7 +4070,7 @@ Chart.defaults.plugins.tooltip.bodyFont = { size: 12 };
       }
 
       if (hasLicenseWarnings) {
-        window.alert('⚠️ ตรวจพบว่าพนักงานรายนี้มีใบอนุญาตหมดอายุในบางช่วงเวลาของเดือนนี้\nระบบได้เปลี่ยนกะการทำงานเฉพาะช่วงเวลาดังกล่าวให้เป็นกะหยุด (OFF) อัตโนมัติ (เฉพาะผู้ใช้บัญชี Admin เท่านั้นที่สามารถจัดกะทำงานในช่วงเวลาใบอนุญาตหมดอายุได้)');
+        window.alert('⚠️ ตรวจพบว่าพนักงานรายนี้มีใบอนุญาตหมดอายุในบางช่วงเวลาของเดือนนี้ ระบบจึงงดจัดกะ (ตั้งเป็น \'-\') ในช่วงเวลาดังกล่าวอัตโนมัติ');
       }
 
       modal.hidden = true;
