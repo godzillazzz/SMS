@@ -103,6 +103,7 @@ function doPost(e) {
       case 'previewAutoSchedule': { const rt = extractRequestAndToken_(args, request.payload); data = previewAutoSchedule(rt.request, rt.token); break; }
       case 'commitAutoSchedule': { const rt = extractRequestAndToken_(args, request.payload); data = commitAutoSchedule(rt.request, rt.token); break; }
       case 'updateEmployeeShifts': { const rt = extractRequestAndToken_(args, request.payload); data = updateEmployeeShifts(rt.request, rt.token); break; }
+      case 'getEmployeeLastShiftInfo': { const rt = extractRequestAndToken_(args, request.payload); data = getEmployeeLastShiftInfo(rt.request.employeeId || args[0], rt.request.targetMonth || args[1], rt.token); break; }
       case 'updateEmployeeShift': { const rt = extractRequestAndToken_(args, request.payload); data = updateEmployeeShift(rt.request, rt.token); break; }
       case 'approveScheduleMonth': data = approveScheduleMonth(args[0], args[1], args[2]); break;
       case 'exportApprovedSchedule': { const rt = extractRequestAndToken_(args, request.payload); data = exportApprovedSchedule(rt.request, rt.token); break; }
