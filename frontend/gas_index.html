@@ -3861,7 +3861,15 @@ Chart.defaults.plugins.tooltip.bodyFont = { size: 12 };
     item.addEventListener('click', () => {
       document.querySelectorAll('.nav-item').forEach((nav) => nav.classList.remove('active'));
       item.classList.add('active');
-      renderView(getMenuView(item));
+      const view = getMenuView(item);
+      if (view === 'master') {
+        const data = currentData();
+        if (!data || !data.licenses || !data.licenses.length) {
+          refreshMasterData();
+          return;
+        }
+      }
+      renderView(view);
     });
   });
 
@@ -4536,7 +4544,17 @@ Chart.defaults.plugins.tooltip.bodyFont = { size: 12 };
 
   window.addEventListener('shiftflow:data-ready', () => {
     const active = document.querySelector('.nav-item.active');
-    if (active) renderView(getMenuView(active));
+    if (active) {
+      const view = getMenuView(active);
+      if (view === 'master') {
+        const data = currentData();
+        if (!data || !data.licenses || !data.licenses.length) {
+          refreshMasterData();
+          return;
+        }
+      }
+      renderView(view);
+    }
   });
 })();
 </script>
