@@ -2294,6 +2294,9 @@ function buildAutoSchedulePlan_(startDate, adminUser) {
   const timeZone = spreadsheet.getSpreadsheetTimeZone();
   
   let targetMonth = startDate;
+  if (targetMonth && typeof targetMonth === 'object' && !(targetMonth instanceof Date)) {
+    targetMonth = targetMonth.startDate || targetMonth.month || targetMonth.monthValue || targetMonth[0] || '';
+  }
   if (targetMonth instanceof Date) {
     targetMonth = Utilities.formatDate(targetMonth, timeZone, 'yyyy-MM');
   }
