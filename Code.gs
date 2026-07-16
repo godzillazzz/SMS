@@ -2369,120 +2369,56 @@ function buildAutoSchedulePlan_(startDate, adminUser) {
     });
   });
 
-  const rule006Target = Number(ruleValue_(rules, 'RULE006', 0)) || 0;
-  const rule007Target = Number(ruleValue_(rules, 'RULE007', 0)) || 0;
-  const rule008Target = Number(ruleValue_(rules, 'RULE008', 0)) || 0;
-
-  const isSupervisor = function(emp) { return String(emp.Position || '').trim().toLowerCase() === 'supervisor'; };
-  const isLeader = function(emp) { 
-    const p = String(emp.Position || '').trim().toLowerCase();
-    return p === 'supervisor' || p === 'team leader' || p === 'act.team leader';
+  const isSupervisor = function(emp) {
+    const p = String(emp.Position || emp.position || '').trim().toLowerCase();
+    return p === 'supervisor' || p.includes('supervisor') || p.includes('หัวหน้า');
   };
-  const allDepts = unique_(employees.map(function(emp) { return String(emp.Department || ''); }).filter(Boolean));
+
+  const cycle = ['D', 'D', 'D', 'D', 'D', 'D', 'OFF', 'N', 'N', 'N', 'N', 'N', 'N', 'OFF'];
+  const phaseIndexes = {
+    'D1': 0, 'D2': 1, 'D3': 2, 'D4': 3, 'D5': 4, 'D6': 5, 'OFF-D': 6,
+    'N1': 7, 'N2': 8, 'N3': 9, 'N4': 10, 'N5': 11, 'N6': 12, 'OFF-N': 13
+  };
 
   employees.forEach(function(employee) {
-    if (!isSupervisor(employee)) return;
-    dates.forEach(function(date) {
-      const id = String(employee['Employee ID'] || '').trim();
-      const key = id + '|' + date;
-      if (planByKey[key]) return;
-      if (parseIsoDateSafe_(date).getDay() === 0) {
-        assign(employee, date, shiftMap.OFF, 'Auto', false, 'Supervisor Sunday off');
-      } else if (rule006Target > 0) {
-        assign(employee, date, shiftMap.D, 'Auto', false, 'Supervisor Day only');
-      }
-    });
-  });
-
-  dates.forEach(function(date) {
-    ['PO11', 'WCS'].forEach(function(dept) {
-      const deptEmployees = employees.filter(function(emp) { return String(emp.Department || '') === dept; });
-      if (rule007Target > 0) {
-        let dLeaders = deptEmployees.filter(function(emp) {
-          const id = String(emp['Employee ID'] || '').trim();
-          return isLeader(emp) && planByKey[id + '|' + date] && planByKey[id + '|' + date].code === 'D';
-        }).length;
-        const dCandidates = deptEmployees.filter(function(emp) {
-          const id = String(emp['Employee ID'] || '').trim();
-          return isLeader(emp) && !planByKey[id + '|' + date];
-        }).sort(function(a, b) { return weeklyHoursFor(String(a['Employee ID']).trim(), date) - weeklyHoursFor(String(b['Employee ID']).trim(), date); });
-        for (let i = 0; i < dCandidates.length && dLeaders < rule007Target; i++) {
-          if (assign(dCandidates[i], date, shiftMap.D, 'Auto', false, 'Auto Leader D coverage')) dLeaders++;
-        }
-      }
-      if (rule008Target > 0) {
-        let nLeaders = deptEmployees.filter(function(emp) {
-          const id = String(emp['Employee ID'] || '').trim();
-          return isLeader(emp) && planByKey[id + '|' + date] && planByKey[id + '|' + date].code === 'N';
-        }).length;
-        const nCandidates = deptEmployees.filter(function(emp) {
-          const id = String(emp['Employee ID'] || '').trim();
-          return isLeader(emp) && !planByKey[id + '|' + date] && !isSupervisor(emp);
-        }).sort(function(a, b) { return weeklyHoursFor(String(a['Employee ID']).trim(), date) - weeklyHoursFor(String(b['Employee ID']).trim(), date); });
-        for (let i = 0; i < nCandidates.length && nLeaders < rule008Target; i++) {
-          if (assign(nCandidates[i], date, shiftMap.N, 'Auto', false, 'Auto Leader N coverage')) nLeaders++;
-        }
-      }
-    });
-  });
-
-  dates.forEach(function(date, dayIndex) {
-    const coverageOrder = dayIndex % 2 ? [
-      { code: 'N', minimum: nightMinimum },
-      { code: 'D', minimum: dayMinimum }
-    ] : [
-      { code: 'D', minimum: dayMinimum },
-      { code: 'N', minimum: nightMinimum }
-    ];
-
-    allDepts.forEach(function(dept) {
-      coverageOrder.forEach(function(target) {
-        if (target.minimum <= 0) return;
-        let assignedCount = employees.filter(function(employee) {
-          const id = String(employee['Employee ID'] || '').trim();
-          const row = planByKey[id + '|' + date];
-          return String(employee.Department || '') === dept && row && row.code === target.code;
-        }).length;
-        const candidates = employees.filter(function(employee) {
-          const id = String(employee['Employee ID'] || '').trim();
-          return String(employee.Department || '') === dept && !planByKey[id + '|' + date] && !(target.code === 'N' && isSupervisor(employee));
-        }).sort(function(a, b) {
-          const aId = String(a['Employee ID'] || '').trim();
-          const bId = String(b['Employee ID'] || '').trim();
-          return weeklyHoursFor(aId, date) - weeklyHoursFor(bId, date) || aId.localeCompare(bId);
-        });
-
-        for (let i = 0; i < candidates.length && assignedCount < target.minimum; i++) {
-          if (assign(candidates[i], date, shiftMap[target.code], 'Auto', false, 'Auto coverage')) assignedCount++;
-        }
-        if (assignedCount < target.minimum) {
-          warnings.push(date + ': ' + dept + ' ' + target.code + ' has ' + assignedCount +
-            '/' + target.minimum + ' people. Add staff or lower the coverage rule.');
-        }
-      });
-    });
-  });
-
-  employees.forEach(function(employee, employeeIndex) {
     const id = String(employee['Employee ID'] || '').trim();
-    dates.forEach(function(date, dayIndex) {
+    const isSup = isSupervisor(employee);
+    
+    let cycleIndex = 0;
+    if (!isSup) {
+      const suggestedPhase = getSuggestedStartPhase_(id, startDate.slice(0, 7), schedule);
+      cycleIndex = phaseIndexes[suggestedPhase] || 0;
+    }
+
+    dates.forEach(function(date) {
       const key = id + '|' + date;
-      if (planByKey[key]) return;
+      if (planByKey[key]) {
+        // If there's already a locked shift (Manual/AL), we advance the cycle index
+        // so the rotating pattern stays aligned.
+        if (!isSup) {
+          cycleIndex++;
+        }
+        return;
+      }
+
       const license = licenseStatusForDate_(id, date, licenseIndex);
       if (!license.valid) {
         licenseBlocked[key] = license;
         assign(employee, date, shiftMap.OFF, 'Auto', false, 'License blocked: ' + license.reason);
+        if (!isSup) cycleIndex++;
         return;
       }
-      const cycleDay = (employeeIndex + dayIndex) % 7;
-      if (cycleDay >= 5) {
-        assign(employee, date, shiftMap.OFF, 'Auto', false, 'Auto rest day');
-        return;
-      }
-      let preferredCode = (employeeIndex + Math.floor(dayIndex / 3)) % 2 === 0 ? 'D' : 'N';
-      if (isSupervisor(employee) && preferredCode === 'N') preferredCode = 'D';
-      if (!assign(employee, date, shiftMap[preferredCode], 'Auto', false, 'Auto rotation')) {
-        assign(employee, date, shiftMap.OFF, 'Auto', false, 'Weekly hour limit');
+
+      if (isSup) {
+        // Supervisor Pattern: D Monday-Saturday, OFF Sunday
+        const dayOfWeek = parseIsoDateSafe_(date).getDay();
+        const code = (dayOfWeek === 0) ? 'OFF' : 'D';
+        assign(employee, date, shiftMap[code], 'Auto', false, 'Auto Supervisor Pattern');
+      } else {
+        // Rotating Pattern: 14-day cycle
+        const code = cycle[cycleIndex % 14];
+        assign(employee, date, shiftMap[code], 'Auto', false, 'Auto Rotating Pattern');
+        cycleIndex++;
       }
     });
   });
@@ -2615,6 +2551,71 @@ function commitAutoSchedule(startDate, token) {
     endDate: plan.endDate,
     approval: approval[0] || null
   };
+}
+
+function getEmployeeLastShiftsFromSchedule_(employeeId, targetMonth, schedule) {
+  const targetDate = parseIsoDateSafe_(targetMonth + '-01');
+  const targetTime = targetDate.getTime();
+  
+  const employeeShifts = schedule.filter(function(row) {
+    if (String(row.employeeId || '').trim() !== employeeId) return false;
+    if (!row.date) return false;
+    const rowTime = parseIsoDateSafe_(row.date).getTime();
+    return rowTime < targetTime;
+  });
+  
+  employeeShifts.sort(function(a, b) {
+    return parseIsoDateSafe_(b.date).getTime() - parseIsoDateSafe_(a.date).getTime();
+  });
+  
+  return employeeShifts.slice(0, 14);
+}
+
+function getSuggestedStartPhase_(employeeId, targetMonth, schedule) {
+  const history = getEmployeeLastShiftsFromSchedule_(employeeId, targetMonth, schedule);
+  if (!history || history.length === 0) return 'D1';
+  
+  const targetDate = parseIsoDateSafe_(targetMonth + '-01');
+  const lastShift = history[0];
+  const lastShiftDate = parseIsoDateSafe_(lastShift.date);
+  const dayDiff = Math.round((targetDate - lastShiftDate) / (1000 * 60 * 60 * 24));
+  
+  if (dayDiff !== 1) {
+    return 'D1';
+  }
+  
+  const lastCode = String(lastShift.code || '').trim().toUpperCase();
+  if (lastCode === 'OFF') {
+    let prevWorkedShift = 'N';
+    for (let i = 1; i < history.length; i++) {
+      if (history[i].code && history[i].code !== 'OFF') {
+        prevWorkedShift = String(history[i].code).trim().toUpperCase();
+        break;
+      }
+    }
+    if (prevWorkedShift === 'D') {
+      return 'N1';
+    } else {
+      return 'D1';
+    }
+  } else if (lastCode === 'D' || lastCode === 'N') {
+    let consecutiveDays = 0;
+    for (let i = 0; i < history.length; i++) {
+      if (String(history[i].code).trim().toUpperCase() === lastCode) {
+        consecutiveDays++;
+      } else {
+        break;
+      }
+    }
+    consecutiveDays = Math.min(6, consecutiveDays);
+    if (consecutiveDays < 6) {
+      return lastCode + (consecutiveDays + 1);
+    } else {
+      return lastCode === 'D' ? 'OFF-D' : 'OFF-N';
+    }
+  }
+  
+  return 'D1';
 }
 
 function getEmployeeLastShiftInfo(employeeId, targetMonth, token) {
